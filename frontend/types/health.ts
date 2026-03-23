@@ -37,6 +37,20 @@ export interface BloodPressureReading {
   recorded_at: string;
 }
 
+export interface OxygenReading {
+  id: string;
+  value: number;
+  notes?: string | null;
+  recorded_at: string;
+}
+
+export interface ActivityReading {
+  id: string;
+  steps: number;
+  date: string;
+  recorded_at: string;
+}
+
 export type GlucoseStatus = 'low' | 'normal' | 'high';
 export type BPStatus = 'low' | 'normal' | 'elevated' | 'high';
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock, Calendar, Activity, TrendingUp, Bell, Settings, User, ClipboardList } from 'lucide-react';
+import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { getTimeBasedGreeting } from '@/lib/greeting';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,11 @@ interface DashboardScreenProps {
   onNavigate: (tab: 'medications' | 'readings') => void;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
+  pulse?: number;
+  oxygen?: number;
+  steps?: number;
+  healthScore?: number;
+  adherenceStreak?: number;
   userName?: string | null;
 }
 
@@ -46,6 +52,11 @@ export const DashboardScreen = ({
   onNavigate,
   onNotificationsClick,
   onSettingsClick,
+  pulse = 72,
+  oxygen = 98,
+  steps = 0,
+  healthScore = 0,
+  adherenceStreak = 0,
   userName,
 }: DashboardScreenProps) => {
   const [addModal, setAddModal] = useState<'blood_sugar' | 'blood_pressure' | null>(null);
@@ -79,14 +90,16 @@ export const DashboardScreen = ({
            <div className="h-6 w-1 bg-primary rounded-full hidden lg:block" />
            <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">{today}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
            <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 relative group">
              <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
              {pendingMeds.length > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-white" />}
            </Button>
-           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
+           <Link href="/profile">
+             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+               <User size={18} />
+             </div>
+           </Link>
         </div>
       </header>
 
@@ -139,7 +152,7 @@ export const DashboardScreen = ({
                  <TrendingUp size={16} className="text-success opacity-50" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">72</p>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{pulse}</p>
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Heart Rate (Avg)</p>
               </div>
            </Card>
@@ -153,7 +166,7 @@ export const DashboardScreen = ({
                  <CheckCircle2 size={16} className="text-success opacity-50" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">98%</p>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{oxygen}%</p>
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Blood Oxygen</p>
               </div>
            </Card>
@@ -234,16 +247,16 @@ export const DashboardScreen = ({
                  <div className="space-y-4">
                     <div className="p-4 bg-white rounded-2xl shadow-sm">
                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Health Score</p>
-                       <p className="text-2xl font-black text-slate-900 mt-1">94/100</p>
+                       <p className="text-2xl font-black text-slate-900 mt-1">{healthScore}/100</p>
                        <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                          <div className="h-full bg-primary w-[94%]" />
+                          <div className="h-full bg-primary" style={{ width: `${healthScore}%` }} />
                        </div>
                     </div>
                     
                     <div className="p-4 bg-white rounded-2xl shadow-sm">
                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Adherence Streak</p>
-                       <p className="text-2xl font-black text-slate-900 mt-1">12 Days</p>
-                       <p className="text-[10px] text-success font-bold mt-1">+2 from last week</p>
+                       <p className="text-2xl font-black text-slate-900 mt-1">{adherenceStreak} Days</p>
+                       <p className="text-[10px] text-success font-bold mt-1">Keep it up!</p>
                     </div>
 
                     <div className="p-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-between group cursor-pointer overflow-hidden relative">

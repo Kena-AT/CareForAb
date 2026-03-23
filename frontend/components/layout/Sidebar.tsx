@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, ClipboardList, Activity, User, Settings, LogOut, LucideIcon, Zap } from "lucide-react";
+import { Home, ClipboardList, Activity, User, Settings, LucideIcon, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,9 +15,8 @@ interface SidebarItem {
 const items: SidebarItem[] = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
   { icon: Zap, label: "Insights", href: "/insights" },
-  { icon: Activity, label: "Readings", href: "/readings" },
   { icon: ClipboardList, label: "Medications", href: "/medications" },
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 export function Sidebar() {
@@ -78,30 +77,9 @@ export function Sidebar() {
 
       {/* User / Bottom Section */}
       <div className="p-4 mt-auto border-t border-slate-50">
-        <div className="px-4 py-4 mb-4 rounded-2xl bg-slate-50/50 flex items-center gap-3">
-           <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white overflow-hidden flex items-center justify-center text-slate-400">
-             <User size={20} />
-           </div>
-           <div className="flex-1 min-w-0">
-             <p className="text-xs font-bold text-slate-900 truncate">Kenakaye</p>
-             <p className="text-[10px] text-slate-400 truncate">Pro Account</p>
-           </div>
+        <div className="flex items-center justify-center p-2">
+           <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.2em]">CareforAb v1.0</p>
         </div>
-        
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-[20px] transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 mb-1",
-            pathname === "/settings" && "bg-[#f0fdfaff] text-primary"
-          )}
-        >
-          <Settings className="h-5 w-5" />
-          <span className="text-sm font-bold">Settings</span>
-        </Link>
-        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-[20px] transition-all text-slate-400 hover:bg-red-50 hover:text-red-500">
-          <LogOut className="h-5 w-5" />
-          <span className="text-sm font-bold">Sign Out</span>
-        </button>
       </div>
     </div>
   );

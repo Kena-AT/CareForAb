@@ -132,7 +132,7 @@ export const QuickAddModal = ({
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-3">
                       <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Systolic</Label>
                       <Input

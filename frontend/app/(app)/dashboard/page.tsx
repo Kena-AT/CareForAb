@@ -14,6 +14,11 @@ export default function DashboardPage() {
     markMedicationTaken,
     addBloodSugarReading,
     addBloodPressureReading,
+    getLatestPulse,
+    getLatestOxygen,
+    getTodaySteps,
+    calculateHealthScore,
+    calculateAdherenceStreak,
   } = useHealth();
 
   return (
@@ -26,6 +31,11 @@ export default function DashboardPage() {
       onAddBloodSugar={addBloodSugarReading as any}
       onAddBloodPressure={addBloodPressureReading as any}
       onNavigate={(tab) => router.push(`/${tab}`)}
+      pulse={getLatestPulse()}
+      oxygen={getLatestOxygen()}
+      steps={getTodaySteps()}
+      healthScore={calculateHealthScore()}
+      adherenceStreak={calculateAdherenceStreak()}
     />
   );
 }

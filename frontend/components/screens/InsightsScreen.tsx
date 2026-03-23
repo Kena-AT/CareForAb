@@ -1,7 +1,9 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { Activity, TrendingUp, TrendingDown, Target, Zap, Heart, Droplets, Calendar, ChevronRight, Info } from 'lucide-react';
+import { useMemo } from 'react';
+import { Activity, TrendingUp, TrendingDown, Target, Zap, Heart, Droplets, Calendar, ChevronRight, Info, User } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useHealth } from '@/contexts/HealthContext';
@@ -20,35 +22,68 @@ import {
 } from 'recharts';
 
 export const InsightsScreen = () => {
-  const { bloodSugarReadings, bloodPressureReadings, medications } = useHealth();
+  const { 
+    bloodSugarReadings, 
+    bloodPressureReadings, 
+    medicationLogs,
+    calculateGlucoseStability,
+    calculateAdherenceRate
+  } = useHealth();
 
-  // Mock data for trends if real data is sparse
-  const trendsData = [
-    { day: 'Mon', value: 95 },
-    { day: 'Tue', value: 110 },
-    { day: 'Wed', value: 105 },
-    { day: 'Thu', value: 120 },
-    { day: 'Fri', value: 98 },
-    { day: 'Sat', value: 102 },
-    { day: 'Sun', value: 108 },
-  ];
+  // Generate trends data from real readings (last 7 days)
+  const trendsData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return { 
+        day: days[d.getDay()], 
+        date: d.toISOString().split('T')[0],
+        value: 0,
+        count: 0 
+      };
+    });
+
+    bloodSugarReadings.forEach(reading => {
+      const readingDate = new Date(reading.recorded_at).toISOString().split('T')[0];
+      const dayData = last7Days.find(d => d.date === readingDate);
+      if (dayData) {
+        dayData.value += reading.value;
+        dayData.count += 1;
+      }
+    });
+
+    return last7Days.map(d => ({
+      day: d.day,
+      value: d.count > 0 ? Math.round(d.value / d.count) : 0
+    }));
+  }, [bloodSugarReadings]);
+
+  const stability = calculateGlucoseStability();
+  const adherence = calculateAdherenceRate();
+  const latestBP = bloodPressureReadings[0];
+  const bpValue = latestBP ? `${latestBP.systolic}/${latestBP.diastolic}` : '--/--';
 
   const insights = [
     {
       title: 'Glucose Stability',
-      value: '+12%',
-      label: 'Improvement',
-      description: 'Your fasting glucose has stabilized over the last 14 days.',
+      value: `${stability}%`,
+      label: stability > 80 ? 'Optimal' : 'Variable',
+      description: stability > 80 
+        ? 'Your glucose levels are highly stable within target range.' 
+        : 'Targeted adjustments may help stabilize your glucose spikes.',
       icon: Droplets,
       color: 'text-[#004c56ff]',
       bg: 'bg-[#f0fdfaff]',
-      status: 'improving'
+      status: stability > 80 ? 'stable' : 'improving'
     },
     {
       title: 'Blood Pressure',
-      value: '118/72',
-      label: 'Avg. Optimal',
-      description: 'Maintaining a consistent range. Systolic average is down by 4%.',
+      value: bpValue,
+      label: 'Latest Reading',
+      description: latestBP 
+        ? `Last recorded on ${new Date(latestBP.recorded_at).toLocaleDateString()}.`
+        : 'No recent readings recorded.',
       icon: Heart,
       color: 'text-red-500',
       bg: 'bg-red-50',
@@ -56,13 +91,15 @@ export const InsightsScreen = () => {
     },
     {
       title: 'Medication Sync',
-      value: '98%',
+      value: `${adherence}%`,
       label: 'Adherence',
-      description: 'Excellent adherence! You missed only 1 dose in the last month.',
+      description: adherence > 90 
+        ? 'Excellent adherence! Keep following your therapy protocol.' 
+        : 'Try setting more reminders to improve your adherence rate.',
       icon: Zap,
       color: 'text-[#006672ff]',
       bg: 'bg-slate-50',
-      status: 'peak'
+      status: adherence > 90 ? 'peak' : 'stable'
     }
   ];
 
@@ -78,9 +115,11 @@ export const InsightsScreen = () => {
            <Button variant="ghost" size="sm" className="rounded-xl h-10 px-4 font-bold text-slate-400 hover:text-primary">
               <Calendar size={16} className="mr-2" /> Last 30 Days
            </Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-              <Info size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
+           <Link href="/profile">
+             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+               <User size={18} />
+             </div>
+           </Link>
         </div>
       </header>
 
@@ -212,9 +251,14 @@ export const InsightsScreen = () => {
                           </div>
                           <h4 className="text-xs font-black uppercase text-white/60 tracking-widest">Health Projection</h4>
                        </div>
-                       <p className="text-sm font-bold text-white leading-relaxed">
-                          "At your current adherence and stability rate, you are on track to lower your HbA1c average by 0.3% in the next 3 months."
-                       </p>
+                        <p className="text-sm font-bold text-white leading-relaxed">
+                           {stability > 85 && adherence > 90 
+                             ? "At your current adherence and stability rate, you are on track to significantly improve your long-term health markers within 3 months."
+                             : stability < 70 
+                             ? "Focusing on stabilizing your glucose spikes could help improve your overall health score by up to 15 points."
+                             : "Maintaining consistent medication adherence is key to reaching your target health goals."
+                           }
+                        </p>
                     </CardContent>
                  </Card>
               </div>

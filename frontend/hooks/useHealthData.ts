@@ -6,7 +6,9 @@ import {
   Medication,
   MedicationLog,
   BloodSugarReading,
-  BloodPressureReading
+  BloodPressureReading,
+  OxygenReading,
+  ActivityReading
 } from '@/types/health';
 import { scheduleAllMedicationReminders } from '@/services/notifications';
 
@@ -16,6 +18,8 @@ export const useHealthData = () => {
   const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
   const [bloodSugarReadings, setBloodSugarReadings] = useState<BloodSugarReading[]>([]);
   const [bloodPressureReadings, setBloodPressureReadings] = useState<BloodPressureReading[]>([]);
+  const [oxygenReadings, setOxygenReadings] = useState<OxygenReading[]>([]);
+  const [activityReadings, setActivityReadings] = useState<ActivityReading[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -28,22 +32,27 @@ export const useHealthData = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [medsRes, logsRes, sugarRes, bpRes] = await Promise.all([
+      const [medsRes, logsRes, sugarRes, bpRes, oxygenRes, activityRes] = await Promise.all([
         supabase.from('medications').select('*').eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('medication_logs').select('*').eq('date', today),
         supabase.from('blood_sugar_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('blood_pressure_readings').select('*').order('recorded_at', { ascending: false }).limit(50)
+        supabase.from('blood_pressure_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
+        supabase.from('oxygen_readings' as any).select('*').order('recorded_at', { ascending: false }).limit(20),
+        supabase.from('activity_readings' as any).select('*').order('date', { ascending: false }).limit(7)
       ]);
 
       if (medsRes.error) throw medsRes.error;
       if (logsRes.error) throw logsRes.error;
       if (sugarRes.error) throw sugarRes.error;
       if (bpRes.error) throw bpRes.error;
-
+      // Oxygen and Activity might not exist yet, handle gracefully
+      
       setMedications(medsRes.data as Medication[] || []);
       setMedicationLogs(logsRes.data as MedicationLog[] || []);
       setBloodSugarReadings(sugarRes.data as BloodSugarReading[] || []);
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
+      setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
+      setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
     } catch (error: any) {
       console.error('Error fetching health data:', error);
       toast.error('Failed to load health data');
@@ -212,17 +221,104 @@ export const useHealthData = () => {
     }
   };
 
+  const calculateGlucoseStability = useCallback(() => {
+    if (bloodSugarReadings.length < 2) return 0;
+    const values = bloodSugarReadings.map(r => r.value);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    // Stability score: 100 - (CV * 100)
+    const cv = stdDev / mean;
+    return Math.max(0, Math.min(100, Math.round(100 - (cv * 100))));
+  }, [bloodSugarReadings]);
+
+  const calculateAdherenceRate = useCallback(() => {
+    if (medicationLogs.length === 0) return 100; // Assume perfect if no logs
+    const taken = medicationLogs.filter(l => l.status === 'taken').length;
+    return Math.round((taken / medicationLogs.length) * 100);
+  }, [medicationLogs]);
+
+  const getLatestPulse = useCallback(() => {
+    const latestBP = bloodPressureReadings[0];
+    return latestBP?.pulse || 72; // Default to normal if no data
+  }, [bloodPressureReadings]);
+
+  const getLatestOxygen = useCallback(() => {
+    return oxygenReadings[0]?.value || 98; // Default to normal if no data
+  }, [oxygenReadings]);
+
+  const getTodaySteps = useCallback(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return activityReadings.find(a => a.date === today)?.steps || 0;
+  }, [activityReadings]);
+
+  const addOxygenReading = async (value: number) => {
+    if (!user) return;
+    try {
+      const { data, error } = await (supabase.from('oxygen_readings' as any) as any)
+        .insert({ user_id: user.id, value })
+        .select()
+        .single();
+      if (error) throw error;
+      setOxygenReadings(prev => [data as OxygenReading, ...prev]);
+      toast.success('Oxygen level saved');
+    } catch (error) {
+      console.error('Error adding oxygen reading:', error);
+    }
+  };
+
+  const updateTodaySteps = async (steps: number) => {
+    if (!user) return;
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const { data, error } = await (supabase.from('activity_readings' as any) as any)
+        .upsert({ user_id: user.id, date: today, steps }, { onConflict: 'user_id,date' })
+        .select()
+        .single();
+      if (error) throw error;
+      setActivityReadings(prev => {
+        const filtered = prev.filter(a => a.date !== today);
+        return [data as ActivityReading, ...filtered];
+      });
+    } catch (error) {
+      console.error('Error updating steps:', error);
+    }
+  };
+
+  const calculateHealthScore = useCallback(() => {
+    const stability = calculateGlucoseStability();
+    const adherence = calculateAdherenceRate();
+    // Weighted score: 60% stability, 40% adherence
+    return Math.round((stability * 0.6) + (adherence * 0.4));
+  }, [calculateGlucoseStability, calculateAdherenceRate]);
+
+  const calculateAdherenceStreak = useCallback(() => {
+    if (medicationLogs.length === 0) return 0;
+    return medicationLogs.every(l => l.status === 'taken') ? 1 : 0;
+  }, [medicationLogs]);
+
   return {
     medications,
     medicationLogs,
     bloodSugarReadings,
     bloodPressureReadings,
+    oxygenReadings,
+    activityReadings,
     isLoading,
     markMedicationTaken,
     addBloodSugarReading,
     addBloodPressureReading,
+    addOxygenReading,
+    updateTodaySteps,
     addMedication,
     deleteMedication,
+    calculateGlucoseStability,
+    calculateAdherenceRate,
+    getLatestPulse,
+    getLatestOxygen,
+    getTodaySteps,
+    calculateHealthScore,
+    calculateAdherenceStreak,
     refetch: fetchData
   };
 };

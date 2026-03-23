@@ -88,7 +88,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8 overflow-y-auto">
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <div className="space-y-6">
               <div className="space-y-3">
                  <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Medication Name</Label>
                  <Input

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight, Bell, Settings } from 'lucide-react';
+import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight, Bell, Settings, User } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { MedicationCard } from '@/components/health/MedicationCard';
@@ -61,13 +62,15 @@ export const MedicationsScreen = ({
            <div className="h-6 w-1 bg-primary rounded-full" />
            <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Therapeutic Protocol</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
            <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
              <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
            </Button>
-           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
+           <Link href="/profile">
+             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+               <User size={18} />
+             </div>
+           </Link>
         </div>
       </header>
       

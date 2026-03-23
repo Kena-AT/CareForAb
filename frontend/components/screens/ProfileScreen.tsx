@@ -144,13 +144,13 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
            <div className="h-6 w-1 bg-primary rounded-full" />
            <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Profile Architecture</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
            <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
              <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
            </Button>
-           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
+           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+             <User size={18} />
+           </div>
         </div>
       </header>
 
