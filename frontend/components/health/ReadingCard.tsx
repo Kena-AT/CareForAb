@@ -1,3 +1,5 @@
+"use client";
+
 import { Droplets, Heart, TrendingDown, TrendingUp, Minus, Edit, Trash2, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

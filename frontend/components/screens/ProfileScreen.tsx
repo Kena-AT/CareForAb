@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Bell, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Calendar, Moon, Sun } from 'lucide-react';
+import { User, Bell, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Calendar, Moon, Sun, Settings, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Header } from '@/components/layout/Header';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { exportToPDF, exportToCSV } from '@/services/exportService';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
@@ -49,29 +49,18 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
     type: 'notifications',
   });
 
-  const handleSettingsClick = () => {
-    if (onSettingsClick) {
-      onSettingsClick();
-    } else {
-      // Fallback: open privacy settings
-      setSettingsDialog({ open: true, type: 'privacy' });
-    }
-  };
-
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) {
         setLoading(false);
         return;
       }
-
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .maybeSingle();
-
         if (error) throw error;
         setProfile(data);
       } catch (error) {
@@ -80,7 +69,6 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, [user]);
 
@@ -118,11 +106,6 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
     }
   };
 
-  const openSettingsDialog = (type: 'notifications' | 'privacy' | 'help') => {
-    setSettingsDialog({ open: true, type });
-  };
-
-  // Calculate statistics
   const daysTracked = new Set([
     ...bloodSugarReadings.map(r => new Date(r.recorded_at).toDateString()),
     ...bloodPressureReadings.map(r => new Date(r.recorded_at).toDateString()),
@@ -133,9 +116,9 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
   const adherenceRate = totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
 
   const menuItems = [
-    { icon: Bell, label: 'Notifications', description: 'Manage your reminders', type: 'notifications' as const },
-    { icon: Shield, label: 'Privacy & Security', description: 'Settings and appearance', type: 'privacy' as const },
-    { icon: HelpCircle, label: 'Help & Support', description: 'Get assistance', type: 'help' as const },
+    { icon: Bell, label: 'Notifications', description: 'Manage your medicine reminders', type: 'notifications' as const },
+    { icon: Shield, label: 'Account & Security', description: 'Protect your health information', type: 'privacy' as const },
+    { icon: HelpCircle, label: 'Help & Knowledge', description: 'Guides for healthy living', type: 'help' as const },
   ];
 
   const getInitials = (name: string | null | undefined) => {
@@ -143,251 +126,142 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const formatMemberSince = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
   if (loading) {
-    return (
-      <div className="min-h-screen pb-24">
-        <Header
-          title="Profile"
-          onNotificationsClick={onNotificationsClick}
-          onSettingsClick={handleSettingsClick}
-        />
-        <main className="px-4 py-6 space-y-6">
-          <Card>
-            <CardContent className="p-6 flex items-center gap-4">
-              <Skeleton className="h-20 w-20 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-4 w-48" />
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
+     return (
+       <div className="min-h-screen bg-[#f6fafaff] flex items-center justify-center">
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="text-primary">
+             <Activity size={32} />
+          </motion.div>
+       </div>
+     );
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      <Header
-        title="Profile"
-        onNotificationsClick={onNotificationsClick}
-        onSettingsClick={handleSettingsClick}
-      />
-
-      <main className="px-4 py-6 space-y-6">
-        {/* Profile Card */}
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20 bg-primary/20 ring-4 ring-primary/10">
-                <AvatarFallback className="text-headline text-primary bg-primary/20">
-                  {getInitials(profile?.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-title">
-                  {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-                </h2>
-                <p className="text-body text-muted-foreground">{user?.email}</p>
-                <div className="flex items-center gap-1 mt-1 text-label text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span>Member since {profile?.created_at ? formatMemberSince(profile.created_at) : 'Recently'}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Theme Toggle */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {resolvedTheme === 'dark' ? (
-                  <Moon className="h-5 w-5 text-primary" />
-                ) : (
-                  <Sun className="h-5 w-5 text-primary" />
-                )}
-                <div>
-                  <p className="text-body font-medium">Dark Mode</p>
-                  <p className="text-label text-muted-foreground">
-                    {resolvedTheme === 'dark' ? 'Currently on' : 'Currently off'}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              >
-                {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Health Summary */}
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-title mb-4">Health Summary</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <p className="text-display text-primary">{daysTracked}</p>
-                <p className="text-label text-muted-foreground">Days Tracked</p>
-              </div>
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <p className="text-display text-success">{adherenceRate}%</p>
-                <p className="text-label text-muted-foreground">Adherence</p>
-              </div>
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <p className="text-display text-info">{bloodSugarReadings.length + bloodPressureReadings.length}</p>
-                <p className="text-label text-muted-foreground">Readings</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Export Data Section */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-title flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Export Health Report
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <p className="text-body text-muted-foreground mb-4">
-              Download your health data to share with your doctor or keep for your records.
-            </p>
-            <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full" size="lg">
-                  <Download className="h-5 w-5 mr-2" />
-                  Export Data
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl">Export Health Report</DialogTitle>
-                  <DialogDescription className="text-base pt-2">
-                    Download your complete health data in your preferred format. All your records will be included in the export.
-                  </DialogDescription>
-                </DialogHeader>
-
-                {/* Data Summary */}
-                <div className="grid grid-cols-3 gap-3 py-4 border-y">
-                  <div className="text-center">
-                    <p className="text-2xl font-semibold text-primary">{bloodSugarReadings.length}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Blood Sugar</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-semibold text-primary">{bloodPressureReadings.length}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Blood Pressure</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-semibold text-primary">{medications.length}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Medications</p>
-                  </div>
-                </div>
-
-                {/* Export Options */}
-                <div className="grid gap-3 py-4">
-                  <Button
-                    onClick={handleExportPDF}
-                    className="h-auto py-4 px-6 flex items-center gap-4 hover:bg-primary/90 transition-colors"
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-foreground/20">
-                      <FileText className="h-6 w-6 text-primary-foreground" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold text-base">Download as PDF</p>
-                      <p className="text-sm text-primary-foreground/80">Formatted report ready for printing and sharing with healthcare providers</p>
-                    </div>
-                  </Button>
-
-                  <Button
-                    onClick={handleExportCSV}
-                    variant="outline"
-                    className="h-auto py-4 px-6 flex items-center gap-4 border-2 hover:bg-accent transition-colors"
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                      <Download className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold text-base">Download as CSV</p>
-                      <p className="text-sm text-muted-foreground">Raw data format perfect for spreadsheet analysis and data processing</p>
-                    </div>
-                  </Button>
-                </div>
-
-                {/* Info Note */}
-                <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2">
-                  <HelpCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    Your exported report includes all blood sugar readings, blood pressure readings, and medication information.
-                    Data is exported as of {new Date().toLocaleDateString()}.
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
-
-        {/* Menu Items */}
-        <div className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.label}
-                variant="ghost"
-                className="w-full justify-start h-auto py-4 px-4"
-                onClick={() => openSettingsDialog(item.type)}
-              >
-                <div className="flex items-center gap-4 w-full">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Icon className="h-5 w-5 text-foreground" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-body font-medium">{item.label}</p>
-                    <p className="text-label text-muted-foreground">{item.description}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </Button>
-            );
-          })}
+    <div className="min-h-screen bg-[#f6fafaff] pb-24">
+      {/* Header - Consistent with Global Design */}
+      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+           <div className="h-6 w-1 bg-primary rounded-full" />
+           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Profile Architecture</p>
         </div>
+        <div className="flex items-center gap-4">
+           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+        </div>
+      </header>
 
-        {/* Sign Out */}
-        <Button
-          variant="destructive"
-          className="w-full"
-          size="lg"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          Sign Out
-        </Button>
+      <main className="px-10 py-10 max-w-5xl mx-auto space-y-10">
+        <section className="flex flex-col md:flex-row gap-10">
+           {/* Left Column: User Card */}
+           <div className="flex-1 space-y-10">
+              <Card className="border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] overflow-hidden">
+                 <div className="h-24 bg-gradient-to-r from-[#004c56ff] to-[#006672ff]" />
+                 <CardContent className="p-8 -mt-12 text-center md:text-left">
+                    <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
+                       <Avatar className="h-24 w-24 bg-white border-4 border-white shadow-xl">
+                          <AvatarFallback className="text-2xl font-black bg-[#f0fdfaff] text-primary">
+                             {getInitials(profile?.full_name)}
+                          </AvatarFallback>
+                       </Avatar>
+                       <div className="pb-2">
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                             {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                          </h2>
+                          <p className="text-sm font-bold text-slate-400">{user?.email}</p>
+                       </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-50">
+                       <div className="text-center">
+                          <p className="text-xl font-black text-slate-900">{daysTracked}</p>
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Days</p>
+                       </div>
+                       <div className="text-center">
+                          <p className="text-xl font-black text-primary">{adherenceRate}%</p>
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Rate</p>
+                       </div>
+                       <div className="text-center">
+                          <p className="text-xl font-black text-slate-900">{medications.length}</p>
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Meds</p>
+                       </div>
+                    </div>
+                 </CardContent>
+              </Card>
 
-        <p className="text-center text-label text-muted-foreground pt-4">
-          {process.env.NEXT_PUBLIC_APP_NAME || 'CareforAb'} v1.0.0
-        </p>
+              {/* Data Export Card */}
+              <Card className="border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-8 space-y-6">
+                 <div>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Vault & Records</h3>
+                    <p className="text-xs text-slate-400 font-medium">Download your complete diagnostic history.</p>
+                 </div>
+                 
+                 <div className="flex flex-col sm:flex-row gap-3">
+                    <Button onClick={handleExportPDF} className="flex-1 bg-[#004c56ff] hover:bg-[#003a42] text-white rounded-xl h-12 font-black text-xs gap-2">
+                       <FileText size={16} /> PDF Report
+                    </Button>
+                    <Button onClick={handleExportCSV} className="flex-1 bg-[#dfe3e3ff] hover:bg-[#d0d6d6] text-slate-700 rounded-xl h-12 font-black text-xs gap-2">
+                       <Download size={16} /> CSV Dataset
+                    </Button>
+                 </div>
+              </Card>
+           </div>
+
+           {/* Right Column: Menu & Actions */}
+           <div className="w-full md:w-80 space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                 <div className="h-6 w-1 bg-primary rounded-full" />
+                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Management</h3>
+              </div>
+              
+              <div className="space-y-3">
+                 {menuItems.map((item, idx) => (
+                    <motion.button
+                       key={idx}
+                       whileHover={{ x: 4 }}
+                       className="w-full text-left p-4 bg-white border border-slate-50 rounded-2xl flex items-center gap-4 group transition-all hover:shadow-lg hover:shadow-slate-200/50"
+                    >
+                       <div className="p-3 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-[#f0fdfaff] group-hover:text-primary transition-colors">
+                          <item.icon size={20} />
+                       </div>
+                       <div className="flex-1">
+                          <p className="text-sm font-black text-slate-900">{item.label}</p>
+                          <p className="text-[10px] text-slate-400 group-hover:text-slate-500 font-medium">{item.description}</p>
+                       </div>
+                       <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-all" />
+                    </motion.button>
+                 ))}
+                 
+                 <motion.button
+                    whileHover={{ x: 4 }}
+                    className="w-full text-left p-4 bg-white border border-slate-50 rounded-2xl flex items-center justify-between group transition-all hover:bg-slate-50"
+                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                 >
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 rounded-xl bg-slate-50 text-slate-400">
+                          {resolvedTheme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-slate-900">Visual Mode</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{resolvedTheme === 'dark' ? 'Dark Protocol' : 'Standard View'}</p>
+                       </div>
+                    </div>
+                 </motion.button>
+              </div>
+
+              <Button 
+                variant="ghost" 
+                onClick={handleSignOut}
+                className="w-full mt-10 rounded-[20px] h-12 text-red-500 hover:bg-red-50 hover:text-red-600 font-black text-xs gap-3"
+              >
+                <LogOut size={18} /> End Session
+              </Button>
+           </div>
+        </section>
       </main>
-
-      {/* Settings Dialogs */}
-      <SettingsDialog
-        open={settingsDialog.open}
-        onOpenChange={(open) => setSettingsDialog(prev => ({ ...prev, open }))}
-        type={settingsDialog.type}
-      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
+import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight, Bell, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { MedicationCard } from '@/components/health/MedicationCard';
@@ -49,48 +49,46 @@ export const MedicationsScreen = ({
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [medicationLogs, today]);
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, x: -10 },
-    show: { opacity: 1, x: 0 }
-  };
+  // Animation variants
+  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+  const item = { hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-32">
-      <Header 
-        title="Medications" 
-        subtitle="Your therapeutic protocol"
-        onNotificationsClick={onNotificationsClick}
-        onSettingsClick={onSettingsClick}
-      />
+    <div className="min-h-screen bg-[#f6fafaff] pb-24">
+      {/* Header - Design ruQjr */}
+      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+           <div className="h-6 w-1 bg-primary rounded-full" />
+           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Therapeutic Protocol</p>
+        </div>
+        <div className="flex items-center gap-4">
+           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+        </div>
+      </header>
       
-      <main className="px-6 py-8 max-w-7xl mx-auto space-y-10">
+      <main className="px-10 py-10 max-w-7xl mx-auto space-y-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex bg-white/50 backdrop-blur-sm p-1 rounded-[1.2rem] border border-slate-100 shadow-sm">
+          <div className="flex bg-white p-1 rounded-[20px] border border-slate-100 shadow-sm">
             <button
               onClick={() => setView('schedule')}
-              className={`px-6 py-2.5 rounded-[1rem] text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`px-8 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-wider transition-all ${
                 view === 'schedule' 
-                ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
+                ? 'bg-[#f0fdfaff] text-primary shadow-sm' 
                 : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              Today's Schedule
+              Daily Schedule
             </button>
             <button
               onClick={() => setView('all')}
-              className={`px-6 py-2.5 rounded-[1rem] text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`px-8 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-wider transition-all ${
                 view === 'all' 
-                ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
+                ? 'bg-[#f0fdfaff] text-primary shadow-sm' 
                 : 'text-slate-400 hover:text-slate-600'
               }`}
             >
@@ -100,7 +98,7 @@ export const MedicationsScreen = ({
 
           <Button 
             onClick={() => setShowAddModal(true)}
-            className="rounded-xl h-11 px-6 font-bold bg-primary shadow-lg shadow-primary/20"
+            className="rounded-[20px] h-12 px-8 font-black bg-[#004c56ff] hover:bg-[#003a42] text-white shadow-lg shadow-[#004c5633]"
           >
             <Plus size={18} className="mr-2" /> New Medication
           </Button>
@@ -117,7 +115,7 @@ export const MedicationsScreen = ({
             >
               <div className="flex items-center gap-2 mb-2">
                  <div className="h-6 w-1 bg-primary rounded-full" />
-                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Daily Timeline</h3>
+                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Active Timeline</h3>
               </div>
 
               {todayLogs.length > 0 ? (
@@ -135,39 +133,30 @@ export const MedicationsScreen = ({
                           {isTaken ? <CheckCircle2 size={16} /> : <Clock size={16} />}
                         </div>
                         
-                        <div className="group">
-                          <MedicationCard
-                            medication={medication}
-                            log={log}
-                            onMarkTaken={onMarkMedicationTaken}
-                            showActions={true}
-                            onEdit={onUpdateMedication ? (med) => setEditingMedication(med) : undefined}
-                            onDelete={onDeleteMedication}
-                          />
-                        </div>
+                        <MedicationCard
+                          medication={medication}
+                          log={log}
+                          onMarkTaken={onMarkMedicationTaken}
+                          showActions={true}
+                          onEdit={onUpdateMedication ? (med) => setEditingMedication(med) : undefined}
+                          onDelete={onDeleteMedication}
+                        />
                       </motion.div>
                     );
                   })}
                 </div>
               ) : (
-                <Card className="border-none bg-white shadow-xl shadow-slate-200/50 p-12 text-center rounded-[2.5rem]">
+                <Card className="border-none bg-white shadow-xl shadow-slate-200/50 p-12 text-center rounded-[20px]">
                   <CardContent className="p-0 space-y-4">
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
                       <Calendar size={40} />
                     </div>
                     <div>
-                      <h4 className="text-xl font-bold text-slate-900">Your schedule is clear</h4>
-                      <p className="text-sm text-slate-400 max-w-[280px] mx-auto mt-1">
-                        No medications are currently scheduled for today. Add a new one to get started.
+                      <h4 className="text-xl font-black text-slate-900 leading-none">Your schedule is empty</h4>
+                      <p className="text-sm text-slate-400 max-w-[280px] mx-auto mt-2">
+                        You have no medications scheduled for today.
                       </p>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowAddModal(true)}
-                      className="mt-4 rounded-xl border-slate-100 text-slate-600 font-bold"
-                    >
-                      Add First Medication
-                    </Button>
                   </CardContent>
                 </Card>
               )}
@@ -181,15 +170,15 @@ export const MedicationsScreen = ({
               className="space-y-8"
             >
               <div className="flex items-center gap-2 mb-2">
-                 <div className="h-6 w-1 bg-slate-900 rounded-full" />
-                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Medication Library</h3>
+                 <div className="h-6 w-1 bg-primary rounded-full" />
+                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Medication Inventory</h3>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {medications.length > 0 ? (
                   medications.map((medication) => (
                     <motion.div key={medication.id} variants={item} whileHover={{ y: -4 }} transition={{ type: 'spring', stiffness: 300 }}>
-                      <Card className="border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden group rounded-[2rem] hover:shadow-2xl transition-all">
+                      <Card className="border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden group rounded-[20px] hover:shadow-2xl transition-all">
                         <CardContent className="p-6 space-y-6">
                           <div className="flex items-start justify-between">
                             <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all">
@@ -203,13 +192,13 @@ export const MedicationsScreen = ({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="rounded-xl border-slate-100 shadow-xl">
-                                  <DropdownMenuItem onClick={() => setEditingMedication(medication)} className="font-bold text-xs p-3 cursor-pointer">
+                                  <DropdownMenuItem onClick={() => setEditingMedication(medication)} className="font-black text-xs p-3 cursor-pointer">
                                     <Edit className="h-4 w-4 mr-2 text-slate-400" />
                                     Edit Details
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => onDeleteMedication(medication.id)}
-                                    className="text-destructive font-bold text-xs p-3 cursor-pointer"
+                                    className="text-destructive font-black text-xs p-3 cursor-pointer"
                                   >
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Archive Medication
@@ -223,16 +212,14 @@ export const MedicationsScreen = ({
                             <h3 className="text-lg font-black text-slate-900 group-hover:text-primary transition-colors">{medication.name}</h3>
                             <div className="flex items-center gap-2 mt-1">
                                <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{medication.dosage}</p>
-                               <span className="w-1 h-1 rounded-full bg-slate-200" />
-                               <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{medication.frequency}</p>
                             </div>
                           </div>
 
                           <div className="pt-4 border-t border-slate-50">
-                             <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest mb-2">Schedule</p>
-                             <div className="flex flex-wrap gap-1.5">
+                             <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.2em] mb-3">Protocol</p>
+                             <div className="flex flex-wrap gap-2">
                                 {medication.times.map((time, i) => (
-                                   <span key={i} className="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-500 text-[10px] font-bold">
+                                   <span key={i} className="px-3 py-1.5 rounded-lg bg-[#f0fdfaff] text-primary text-[10px] font-black">
                                       {time}
                                    </span>
                                 ))}

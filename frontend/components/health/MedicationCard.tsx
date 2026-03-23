@@ -1,3 +1,5 @@
+"use client";
+
 import { Check, Clock, Pill, Edit, Trash2, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

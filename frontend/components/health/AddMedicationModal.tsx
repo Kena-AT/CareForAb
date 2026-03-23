@@ -1,11 +1,14 @@
+"use client";
+
 import { useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Pill, Clock, Save, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Medication } from '@/types/health';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AddMedicationModalProps {
   onClose: () => void;
@@ -54,115 +57,150 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center">
-      <div className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-2xl border border-border shadow-xl max-h-[90vh] overflow-auto">
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card">
-          <h2 className="text-title">Add Medication</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-[#004c5633] backdrop-blur-sm"
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col"
+      >
+        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#f0fdfaff] text-[#004c56ff] flex items-center justify-center">
+                 <Pill size={24} />
+              </div>
+              <div>
+                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Add Medication</h3>
+                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Therapy Track</p>
+              </div>
+           </div>
+           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-50 text-slate-400">
+              <X size={20} />
+           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Medication Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Metformin"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-8 overflow-y-auto">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Medication Name</Label>
+                 <Input
+                   placeholder="e.g. Metformin"
+                   value={name}
+                   onChange={(e) => setName(e.target.value)}
+                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                   required
+                 />
+              </div>
+              <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Dosage Form</Label>
+                 <Input
+                   placeholder="e.g. 500mg Tablet"
+                   value={dosage}
+                   onChange={(e) => setDosage(e.target.value)}
+                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                   required
+                 />
+              </div>
+           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dosage">Dosage</Label>
-            <Input
-              id="dosage"
-              placeholder="e.g., 500mg"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              required
-            />
-          </div>
+           <div className="space-y-3">
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Routine Frequency</Label>
+              <Select value={frequency} onValueChange={setFrequency}>
+                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
+                    <SelectValue />
+                 </SelectTrigger>
+                 <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                    <SelectItem value="daily" className="font-bold py-3">🌅 Once Daily</SelectItem>
+                    <SelectItem value="twice_daily" className="font-bold py-3">⚖️ Twice Daily</SelectItem>
+                    <SelectItem value="weekly" className="font-bold py-3">📅 Once Weekly</SelectItem>
+                    <SelectItem value="as_needed" className="font-bold py-3">🆘 As Needed (PRN)</SelectItem>
+                 </SelectContent>
+              </Select>
+           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="frequency">Frequency</Label>
-            <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="twice_daily">Twice Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="as_needed">As Needed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Reminder Times</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={addTime}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Time
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {times.map((time, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    type="time"
-                    value={time}
-                    onChange={(e) => updateTime(index, e.target.value)}
-                    className="flex-1"
-                  />
-                  {times.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTime(index)}
+           <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest">Reminder Protocol</Label>
+                 <Button type="button" variant="ghost" size="sm" onClick={addTime} className="text-primary font-black text-[10px] uppercase tracking-widest hover:bg-[#f0fdfaff] rounded-lg">
+                    <Plus size={14} className="mr-1" /> Add Interval
+                 </Button>
+              </div>
+              <div className="space-y-3">
+                 {times.map((time, index) => (
+                    <motion.div 
+                       initial={{ opacity: 0, x: -10 }} 
+                       animate={{ opacity: 1, x: 0 }} 
+                       key={index} 
+                       className="flex items-center gap-3"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+                       <div className="flex-1 relative">
+                          <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            type="time"
+                            value={time}
+                            onChange={(e) => updateTime(index, e.target.value)}
+                            className="h-14 rounded-2xl bg-slate-50 border-none pl-12 font-bold"
+                          />
+                       </div>
+                       {times.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTime(index)}
+                            className="w-12 h-12 rounded-xl text-red-300 hover:text-red-500 hover:bg-red-50"
+                          >
+                             <Trash2 size={18} />
+                          </Button>
+                       )}
+                    </motion.div>
+                 ))}
+              </div>
+           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Any additional notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
+           <div className="space-y-3">
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Clinical Notes (Optional)</Label>
+              <Textarea
+                placeholder="Special instructions or precautions..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className="rounded-2xl bg-slate-50 border-none p-4 font-medium resize-none"
+              />
+           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isSubmitting || !name.trim() || !dosage.trim()}
-            >
-              {isSubmitting ? 'Adding...' : 'Add Medication'}
-            </Button>
-          </div>
+           <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50"
+              >
+                 Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !name.trim() || !dosage.trim()}
+                className="flex-1 h-14 rounded-2xl font-black bg-[#004c56ff] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2"
+              >
+                 {isSubmitting ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                       <Calendar size={18} />
+                    </motion.div>
+                 ) : <Save size={18} />}
+                 {isSubmitting ? 'Syncing...' : 'Save Therapy'}
+              </Button>
+           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 };

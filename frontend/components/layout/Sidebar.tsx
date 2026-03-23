@@ -1,14 +1,22 @@
 "use client";
 
-import { Home, ClipboardList, Activity, User, Settings, Bell } from "lucide-react";
+import { Home, ClipboardList, Activity, User, Settings, LogOut, LucideIcon, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 
-const items = [
+interface SidebarItem {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+}
+
+const items: SidebarItem[] = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
-  { icon: ClipboardList, label: "Medications", href: "/medications" },
+  { icon: Zap, label: "Insights", href: "/insights" },
   { icon: Activity, label: "Readings", href: "/readings" },
+  { icon: ClipboardList, label: "Medications", href: "/medications" },
   { icon: User, label: "Profile", href: "/profile" },
 ];
 
@@ -16,31 +24,83 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 border-r bg-card h-screen flex flex-col hidden md:flex">
-      <div className="p-6">
-        <h1 className="text-xl font-bold text-primary">CareforAb</h1>
+    <div className="w-64 border-r border-slate-100 bg-white h-screen flex flex-col shrink-0 sticky top-0 z-50">
+      {/* Brand Section */}
+      <div className="p-8">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            <Activity size={24} />
+          </div>
+          <h1 className="text-xl font-black tracking-tighter text-slate-900">CareforAb</h1>
+        </motion.div>
       </div>
-      <nav className="flex-1 px-4 space-y-2">
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-              pathname === item.href 
-                ? "bg-primary text-primary-foreground" 
-                : "hover:bg-accent text-muted-foreground"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
-          </Link>
-        ))}
+
+      {/* Navigation Section */}
+      <nav className="flex-1 px-4 space-y-1.5 pt-2">
+        <p className="px-4 text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Main Menu</p>
+        {items.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-[20px] transition-all duration-300 group relative",
+                isActive 
+                  ? "bg-[#f0fdfaff] text-primary shadow-sm" 
+                  : "hover:bg-slate-50 text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <item.icon className={cn(
+                "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
+                isActive ? "text-primary" : "text-slate-300 group-hover:text-slate-500"
+              )} />
+              <span className={cn(
+                "text-sm font-bold tracking-tight",
+                isActive ? "text-primary" : "text-slate-500"
+              )}>{item.label}</span>
+              
+              {isActive && (
+                <motion.div 
+                  layoutId="active-pill"
+                  className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+            </Link>
+          );
+        })}
       </nav>
-      <div className="p-4 border-t">
-        <button className="flex items-center gap-3 px-3 py-2 w-full rounded-lg hover:bg-accent text-muted-foreground">
+
+      {/* User / Bottom Section */}
+      <div className="p-4 mt-auto border-t border-slate-50">
+        <div className="px-4 py-4 mb-4 rounded-2xl bg-slate-50/50 flex items-center gap-3">
+           <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white overflow-hidden flex items-center justify-center text-slate-400">
+             <User size={20} />
+           </div>
+           <div className="flex-1 min-w-0">
+             <p className="text-xs font-bold text-slate-900 truncate">Kenakaye</p>
+             <p className="text-[10px] text-slate-400 truncate">Pro Account</p>
+           </div>
+        </div>
+        
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-3 px-4 py-3 rounded-[20px] transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 mb-1",
+            pathname === "/settings" && "bg-[#f0fdfaff] text-primary"
+          )}
+        >
           <Settings className="h-5 w-5" />
-          <span>Settings</span>
+          <span className="text-sm font-bold">Settings</span>
+        </Link>
+        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-[20px] transition-all text-slate-400 hover:bg-red-50 hover:text-red-500">
+          <LogOut className="h-5 w-5" />
+          <span className="text-sm font-bold">Sign Out</span>
         </button>
       </div>
     </div>

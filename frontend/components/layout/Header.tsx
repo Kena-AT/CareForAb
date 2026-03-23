@@ -1,3 +1,5 @@
+"use client";
+
 import { Bell, Settings, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';

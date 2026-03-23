@@ -1,7 +1,8 @@
+"use client";
+
 import { useState } from 'react';
-import { Droplets, Heart, X } from 'lucide-react';
+import { Droplets, Heart, X, Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
@@ -11,8 +12,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { BloodSugarReading, BloodPressureReading } from '@/types/health';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface QuickAddModalProps {
   type: 'blood_sugar' | 'blood_pressure';
@@ -27,8 +29,6 @@ export const QuickAddModal = ({
   onAddBloodSugar, 
   onAddBloodPressure 
 }: QuickAddModalProps) => {
-  const { toast } = useToast();
-  
   // Blood sugar state
   const [glucoseValue, setGlucoseValue] = useState('');
   const [mealContext, setMealContext] = useState<BloodSugarReading['meal_context']>('fasting');
@@ -42,151 +42,146 @@ export const QuickAddModal = ({
     if (type === 'blood_sugar') {
       const value = parseInt(glucoseValue);
       if (isNaN(value) || value < 20 || value > 600) {
-        toast({
-          title: 'Invalid Value',
-          description: 'Please enter a blood sugar value between 20 and 600 mg/dL',
-          variant: 'destructive',
-        });
+        toast.error('Please enter a blood sugar value between 20 and 600 mg/dL');
         return;
       }
       onAddBloodSugar({ value, unit: 'mg/dL', meal_context: mealContext });
-      toast({
-        title: 'Reading Saved',
-        description: `Blood sugar: ${value} mg/dL`,
-      });
+      toast.success(`Blood sugar ${value} mg/dL recorded.`);
     } else {
       const sys = parseInt(systolic);
       const dia = parseInt(diastolic);
       const pul = pulse ? parseInt(pulse) : undefined;
       
       if (isNaN(sys) || sys < 70 || sys > 250 || isNaN(dia) || dia < 40 || dia > 150) {
-        toast({
-          title: 'Invalid Values',
-          description: 'Please enter valid blood pressure values',
-          variant: 'destructive',
-        });
+        toast.error('Please enter valid blood pressure values.');
         return;
       }
       onAddBloodPressure({ systolic: sys, diastolic: dia, pulse: pul });
-      toast({
-        title: 'Reading Saved',
-        description: `Blood pressure: ${sys}/${dia} mmHg`,
-      });
+      toast.success(`Blood pressure ${sys}/${dia} recorded.`);
     }
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 backdrop-blur-sm sm:items-center">
-      <Card className="w-full max-w-md mx-4 mb-4 sm:mb-0 animate-scale-in">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="flex items-center gap-3 text-title">
-            {type === 'blood_sugar' ? (
-              <>
-                <Droplets className="h-6 w-6 text-primary" />
-                Add Blood Sugar
-              </>
-            ) : (
-              <>
-                <Heart className="h-6 w-6 text-accent" />
-                Add Blood Pressure
-              </>
-            )}
-          </CardTitle>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {type === 'blood_sugar' ? (
-            <>
-              <div className="space-y-2">
-                <Label className="text-body">Blood Sugar Value</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    placeholder="120"
-                    value={glucoseValue}
-                    onChange={(e) => setGlucoseValue(e.target.value)}
-                    className="text-headline h-16 text-center text-2xl"
-                    min={20}
-                    max={600}
-                  />
-                  <span className="text-body text-muted-foreground shrink-0">mg/dL</span>
-                </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-[#004c5633] backdrop-blur-sm"
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden relative"
+      >
+        <div className="p-8 space-y-8">
+           <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    type === 'blood_sugar' ? 'bg-[#f0fdfaff] text-[#004c56ff]' : 'bg-red-50 text-red-500'
+                 }`}>
+                    {type === 'blood_sugar' ? <Droplets size={24} /> : <Heart size={24} />}
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Record Vitals</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                       {type === 'blood_sugar' ? 'Glucose Reading' : 'Blood Pressure'}
+                    </p>
+                 </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label className="text-body">When was this taken?</Label>
-                <Select value={mealContext} onValueChange={(v) => setMealContext(v as BloodSugarReading['meal_context'])}>
-                  <SelectTrigger className="h-14">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fasting">Fasting (morning)</SelectItem>
-                    <SelectItem value="before_meal">Before meal</SelectItem>
-                    <SelectItem value="after_meal">After meal (2 hours)</SelectItem>
-                    <SelectItem value="bedtime">Bedtime</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-body">Systolic (top)</Label>
-                  <Input
-                    type="number"
-                    placeholder="120"
-                    value={systolic}
-                    onChange={(e) => setSystolic(e.target.value)}
-                    className="h-16 text-center text-xl"
-                    min={70}
-                    max={250}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-body">Diastolic (bottom)</Label>
-                  <Input
-                    type="number"
-                    placeholder="80"
-                    value={diastolic}
-                    onChange={(e) => setDiastolic(e.target.value)}
-                    className="h-16 text-center text-xl"
-                    min={40}
-                    max={150}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-body">Pulse (optional)</Label>
-                <Input
-                  type="number"
-                  placeholder="72"
-                  value={pulse}
-                  onChange={(e) => setPulse(e.target.value)}
-                  className="h-14 text-center"
-                  min={40}
-                  max={200}
-                />
-              </div>
-            </>
-          )}
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-50 text-slate-400">
+                 <X size={20} />
+              </Button>
+           </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} className="flex-1">
-              Save Reading
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+           <div className="space-y-6">
+              {type === 'blood_sugar' ? (
+                <>
+                  <div className="space-y-3">
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Glucose Level (mg/dL)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="000"
+                        value={glucoseValue}
+                        onChange={(e) => setGlucoseValue(e.target.value)}
+                        className="h-20 text-center text-4xl font-black bg-slate-50 border-none rounded-2xl focus-visible:ring-primary/20 transition-all placeholder:text-slate-200"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Meal Context</Label>
+                    <Select value={mealContext} onValueChange={(v) => setMealContext(v as BloodSugarReading['meal_context'])}>
+                      <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold text-slate-700">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                        <SelectItem value="fasting" className="font-bold py-3">🌅 Fasting (Morning)</SelectItem>
+                        <SelectItem value="before_meal" className="font-bold py-3">🍽️ Before Meal</SelectItem>
+                        <SelectItem value="after_meal" className="font-bold py-3">🍰 After Meal (2h)</SelectItem>
+                        <SelectItem value="bedtime" className="font-bold py-3">🌙 Bedtime</SelectItem>
+                        <SelectItem value="other" className="font-bold py-3">📍 Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Systolic</Label>
+                      <Input
+                        type="number"
+                        placeholder="120"
+                        value={systolic}
+                        onChange={(e) => setSystolic(e.target.value)}
+                        className="h-16 text-center text-2xl font-black bg-slate-50 border-none rounded-2xl"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Diastolic</Label>
+                      <Input
+                        type="number"
+                        placeholder="80"
+                        value={diastolic}
+                        onChange={(e) => setDiastolic(e.target.value)}
+                        className="h-16 text-center text-2xl font-black bg-slate-50 border-none rounded-2xl"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Pulse (Optional BPM)</Label>
+                    <Input
+                      type="number"
+                      placeholder="72"
+                      value={pulse}
+                      onChange={(e) => setPulse(e.target.value)}
+                      className="h-14 rounded-2xl bg-slate-50 border-none text-center font-bold"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <Button variant="ghost" onClick={onClose} className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSubmit} 
+                  className="flex-1 h-14 rounded-2xl font-black bg-[#004c56ff] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2"
+                >
+                  <Save size={18} /> Save Protocol
+                </Button>
+              </div>
+           </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

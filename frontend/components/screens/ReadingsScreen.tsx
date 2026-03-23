@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { Droplets, Heart, Plus, Activity, TrendingUp, History, Filter } from 'lucide-react';
+import { Droplets, Heart, Plus, Activity, TrendingUp, History, Filter, Bell, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Header } from '@/components/layout/Header';
 import { BloodSugarChart, BloodPressureChart } from '@/components/health/HealthChart';
 import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCard';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
@@ -42,49 +41,48 @@ export const ReadingsScreen = ({
   const [editReading, setEditReading] = useState<{ type: 'blood_sugar' | 'blood_pressure'; reading: BloodSugarReading | BloodPressureReading } | null>(null);
   const [activeTab, setActiveTab] = useState('blood_sugar');
 
-  const recentReadings = activeTab === 'blood_sugar' ? bloodSugarReadings.slice(0, 10) : bloodPressureReadings.slice(0, 10);
-
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-32">
-      <Header 
-        title="Health Analytics" 
-        subtitle="Insights and trends over time"
-        onNotificationsClick={onNotificationsClick}
-        onSettingsClick={onSettingsClick}
-      />
-      
-      <main className="px-6 py-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#f6fafaff] pb-24">
+      {/* Header - Design xhcoB */}
+      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+           <div className="h-6 w-1 bg-accent rounded-full" />
+           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Health Diagnostics</p>
+        </div>
+        <div className="flex items-center gap-4">
+           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+           <Button variant="ghost" size="icon" onClick={onSettingsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
+             <Settings size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
+           </Button>
+        </div>
+      </header>
+
+      <main className="px-10 py-10 max-w-7xl mx-auto space-y-10">
         <Tabs defaultValue="blood_sugar" className="w-full space-y-10" onValueChange={setActiveTab}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <TabsList className="bg-white/50 backdrop-blur-sm p-1.5 rounded-[1.5rem] border border-slate-100 shadow-sm w-full md:w-auto h-auto">
+            <TabsList className="bg-white p-1 rounded-[20px] border border-slate-100 shadow-sm w-full md:w-auto h-auto">
               <TabsTrigger 
                 value="blood_sugar" 
-                className="rounded-[1.2rem] py-3 px-6 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all font-bold text-xs uppercase tracking-wider gap-2 h-11"
+                className="rounded-[16px] py-3 px-8 data-[state=active]:bg-[#f0fdfaff] data-[state=active]:text-primary transition-all font-black text-xs uppercase tracking-wider gap-2 h-11"
               >
                 <Droplets size={16} />
-                Blood Sugar
+                Glucose
               </TabsTrigger>
               <TabsTrigger 
                 value="blood_pressure" 
-                className="rounded-[1.2rem] py-3 px-6 data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-accent/20 transition-all font-bold text-xs uppercase tracking-wider gap-2 h-11"
+                className="rounded-[16px] py-3 px-8 data-[state=active]:bg-[#f0fdfaff] data-[state=active]:text-primary transition-all font-black text-xs uppercase tracking-wider gap-2 h-11"
               >
                 <Heart size={16} />
-                Blood Pressure
+                Pressure
               </TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-3">
-               <Button 
-                variant="outline" 
-                size="sm"
-                className="rounded-xl border-slate-100 bg-white text-slate-500 font-bold text-xs h-11 px-4"
-              >
-                <Filter size={14} className="mr-2" /> Last 30 Days
-              </Button>
               <Button 
                 onClick={() => setAddModal(activeTab as 'blood_sugar' | 'blood_pressure')}
-                size="sm"
-                className={`rounded-xl h-11 px-6 font-bold shadow-lg ${activeTab === 'blood_sugar' ? 'bg-primary shadow-primary/20' : 'bg-accent shadow-accent/20'}`}
+                className="bg-[#004c56ff] hover:bg-[#003a42] text-white rounded-[20px] h-12 px-8 font-black shadow-lg shadow-[#004c5633]"
               >
                 <Plus size={18} className="mr-2" /> Add Log
               </Button>
@@ -103,25 +101,11 @@ export const ReadingsScreen = ({
                 <section>
                   <div className="flex items-center gap-2 mb-6">
                     <div className="h-6 w-1 bg-primary rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Analytics Dashboard</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Glucose Analytics</h3>
                   </div>
-                  <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden bg-white p-6 md:p-10 rounded-[2.5rem]">
+                  <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden bg-white p-10 rounded-[20px]">
                     <div className="space-y-8">
-                       <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-primary/10 text-primary rounded-2xl">
-                               <Droplets size={24} />
-                            </div>
-                            <div>
-                               <h4 className="text-xl font-bold text-slate-900">Glucose Trends</h4>
-                               <p className="text-xs text-slate-400">Stable and within range</p>
-                            </div>
-                         </div>
-                         <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-success/10 text-success rounded-full text-[10px] font-bold uppercase">
-                           <TrendingUp size={12} /> Optimal Performance
-                         </div>
-                       </div>
-                       <div className="h-[300px] w-full pt-4">
+                       <div className="h-[300px] w-full">
                          <BloodSugarChart readings={bloodSugarReadings} />
                        </div>
                     </div>
@@ -131,13 +115,13 @@ export const ReadingsScreen = ({
                 <section>
                   <div className="flex items-center gap-2 mb-6">
                     <div className="h-6 w-1 bg-primary rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Recent Logs</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Analytical Logs</h3>
                   </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {recentReadings.map((reading) => (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {bloodSugarReadings.slice(0, 8).map((reading) => (
                       <motion.div key={reading.id} whileHover={{ y: -4 }} transition={{ type: 'spring', stiffness: 300 }}>
                         <BloodSugarCard 
-                          reading={reading as any}
+                          reading={reading}
                           showActions={true}
                           onEdit={(reading) => setEditReading({ type: 'blood_sugar', reading })}
                           onDelete={onDeleteBloodSugar}
@@ -152,22 +136,11 @@ export const ReadingsScreen = ({
                 <section>
                   <div className="flex items-center gap-2 mb-6">
                     <div className="h-6 w-1 bg-accent rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Pressure Analytics</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Pressure Analytics</h3>
                   </div>
-                  <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden bg-white p-6 md:p-10 rounded-[2.5rem]">
+                  <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden bg-white p-10 rounded-[20px]">
                     <div className="space-y-8">
-                       <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-accent/10 text-accent rounded-2xl">
-                               <Heart size={24} />
-                            </div>
-                            <div>
-                               <h4 className="text-xl font-bold text-slate-900">BP Monitoring</h4>
-                               <p className="text-xs text-slate-400">Regular tracking active</p>
-                            </div>
-                         </div>
-                       </div>
-                       <div className="h-[300px] w-full pt-4">
+                       <div className="h-[300px] w-full">
                          <BloodPressureChart readings={bloodPressureReadings} />
                        </div>
                     </div>
@@ -177,13 +150,13 @@ export const ReadingsScreen = ({
                 <section>
                   <div className="flex items-center gap-2 mb-6">
                     <div className="h-6 w-1 bg-accent rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Recent Logs</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Recent Diagnostics</h3>
                   </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {recentReadings.map((reading) => (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {bloodPressureReadings.slice(0, 8).map((reading) => (
                       <motion.div key={reading.id} whileHover={{ y: -4 }} transition={{ type: 'spring', stiffness: 300 }}>
                         <BloodPressureCard 
-                          reading={reading as any}
+                          reading={reading}
                           showActions={true}
                           onEdit={(reading) => setEditReading({ type: 'blood_pressure', reading })}
                           onDelete={onDeleteBloodPressure}
