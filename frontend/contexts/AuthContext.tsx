@@ -3,12 +3,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, dateOfBirth: string) => Promise<{ error: Error | null }>;
+  verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error: string | null }>;
+  resendOtp: (email: string, fullName: string) => Promise<{ success: boolean; error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -21,7 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -30,7 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -40,20 +41,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName
+  const signUp = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            date_of_birth: dateOfBirth
+          }
         }
+      });
+
+      if (authError) throw authError;
+
+      // Call backend to send verification code via Brevo
+      const response = await fetch('http://localhost:3001/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fullName, dateOfBirth }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to send verification code');
       }
-    });
-    return { error };
+
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
+  const verifyOtp = async (email: string, code: string) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Verification failed' };
+      }
+
+      if (result.confirmed) {
+        toast.success("Account verified! You can now sign in.");
+      } else {
+        toast.info("Code verified! Manual confirmation might be pending by system administrator.");
+      }
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Verification failed' };
+    }
+  };
+
+  const resendOtp = async (email: string, fullName: string) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fullName }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        return { success: false, error: result.error || 'Failed to resend code' };
+      }
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to resend code' };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -69,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, verifyOtp, resendOtp }}>
       {children}
     </AuthContext.Provider>
   );

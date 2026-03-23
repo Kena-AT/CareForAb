@@ -26,6 +26,7 @@ export const signUpBaseSchema = z.object({
   password: passwordSchema,
   confirmPassword: z.string(),
   fullName: nameSchema,
+  dateOfBirth: z.string().min(1, 'Date of birth is required'),
 });
 
 export const signUpSchema = signUpBaseSchema.refine((data) => data.password === data.confirmPassword, {

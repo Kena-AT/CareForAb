@@ -7,11 +7,10 @@ import { Eye, EyeOff, Heart, Check, X, ArrowLeft, ArrowRight, Mail, Shield, Aler
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { signInSchema, signUpSchema, getPasswordStrength } from '@/lib/validation';
+import { signInSchema, signUpSchema } from '@/lib/validation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AuthMode = 'signin' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email' | 'logout-confirm' | 'logged-out';
@@ -19,21 +18,21 @@ type AuthMode = 'signin' | 'signup' | 'forgot-password' | 'reset-password' | 've
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, signIn, signUp, signOut } = useAuth();
+  const { user, signIn, signUp, signOut, verifyOtp, resendOtp } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('signin');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
+  
   // Form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Handle mode from URL
   useEffect(() => {
@@ -47,41 +46,88 @@ function AuthContent() {
     }
   }, [searchParams]);
 
-  const handleBlur = (field: string) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-  };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    
+    const result = signInSchema.safeParse({ email, password });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await signIn(email, password);
       if (error) {
         toast.error(error.message);
-        setLoading(false);
       } else {
         toast.success('Welcome back!');
         router.push('/dashboard');
       }
-    } catch (error) {
+    } finally {
       setLoading(false);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    const result = signUpSchema.safeParse({ email, password, confirmPassword, fullName, dateOfBirth });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, fullName, dateOfBirth);
       if (error) {
         toast.error(error.message);
       } else {
+        toast.success('Verification code sent! Please check your email.');
         setMode('verify-email');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode.length !== 6) {
+      toast.error('Please enter the 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+    const { success, error } = await verifyOtp(email, verificationCode);
+    setLoading(false);
+    
+    if (success) {
+      setMode('signin');
+    } else {
+      toast.error(error || 'Verification failed');
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setLoading(true);
+    const { success, error } = await resendOtp(email, fullName);
+    setLoading(false);
+    if (success) {
+      toast.success('New code sent successfully!');
+    } else {
+      toast.error(error || 'Failed to resend code');
     }
   };
 
@@ -137,21 +183,12 @@ function AuthContent() {
     }
   };
 
-  const resetForm = () => {
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setFullName('');
-    setErrors({});
-    setTouched({});
-  };
-
   const getVisualContent = () => {
     switch(mode) {
       case 'verify-email':
         return {
-          title: "Verify your email identity.",
-          desc: "We've sent a secure confirmation link to your inbox. Verification ensures the privacy and integrity of your medical records.",
+          title: "Secure Verification",
+          desc: "We prioritize your privacy. Please enter the verification code sent via Brevo to ensure the security of your medical data.",
           icon: Mail
         };
       case 'logout-confirm':
@@ -259,6 +296,7 @@ function AuthContent() {
                       <div className="space-y-1.5">
                         <Label className="text-xs font-black uppercase text-slate-400">Email</Label>
                         <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="name@example.com" />
+                        {errors.email && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.email}</p>}
                       </div>
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center">
@@ -266,6 +304,7 @@ function AuthContent() {
                           <button type="button" onClick={() => setMode('forgot-password')} className="text-[10px] font-bold text-primary uppercase">Forgot Password?</button>
                         </div>
                         <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="••••••••" />
+                        {errors.password && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.password}</p>}
                       </div>
                     </div>
                     <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
@@ -287,14 +326,29 @@ function AuthContent() {
                       <div className="space-y-1.5">
                         <Label className="text-xs font-black uppercase text-slate-400">Full Name</Label>
                         <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="Full name" />
+                        {errors.fullName && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.fullName}</p>}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-black uppercase text-slate-400">Email</Label>
-                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="name@example.com" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-black uppercase text-slate-400">Password</Label>
-                        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="••••••••" />
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-black uppercase text-slate-400">Email</Label>
+                          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="name@example.com" />
+                          {errors.email && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.email}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-black uppercase text-slate-400">Date of Birth</Label>
+                          <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" />
+                          {errors.dateOfBirth && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.dateOfBirth}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-black uppercase text-slate-400">Password</Label>
+                          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="••••••••" />
+                          {errors.password && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.password}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-black uppercase text-slate-400">Confirm Password</Label>
+                          <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-12 bg-slate-50 border-slate-100 rounded-xl" placeholder="••••••••" />
+                          {errors.confirmPassword && <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">{errors.confirmPassword}</p>}
+                        </div>
                       </div>
                     </div>
                     <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
@@ -314,17 +368,54 @@ function AuthContent() {
                       </div>
                       <h1 className="text-3xl font-bold tracking-tight text-slate-900 mt-6">Confirm your email.</h1>
                       <p className="text-muted-foreground leading-relaxed">
-                        To protect your account security, we've sent a verification link to your email address. 
-                        Please click the link to finalize your registration.
+                        We've sent a 6-digit verification code to <span className="font-bold text-slate-950 uppercase tracking-tight">{email}</span> via Brevo.
                       </p>
                     </div>
-                    <div className="space-y-4">
-                      <Button onClick={() => setMode('signin')} variant="outline" className="w-full h-12 rounded-xl font-bold">
-                        Back to Sign In
+
+                    <form onSubmit={handleVerifyOtp} className="space-y-6">
+                      <div className="flex justify-between gap-2 max-w-[280px] mx-auto sm:mx-0">
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <Input
+                            key={index}
+                            id={`otp-${index}`}
+                            type="text"
+                            maxLength={1}
+                            className="w-10 h-12 text-center text-lg font-bold bg-slate-50 border-slate-100 rounded-xl focus:ring-2 focus:ring-primary/20"
+                            value={verificationCode[index] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^\d*$/.test(val)) {
+                                const newCode = verificationCode.split('');
+                                newCode[index] = val.slice(-1);
+                                setVerificationCode(newCode.join(''));
+                                if (val && index < 5) {
+                                  const nextInput = document.getElementById(`otp-${index + 1}`);
+                                  if (nextInput) nextInput.focus();
+                                }
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
+                                const prevInput = document.getElementById(`otp-${index - 1}`);
+                                if (prevInput) prevInput.focus();
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                      
+                      <Button type="submit" disabled={loading || verificationCode.length !== 6} className="w-full h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
+                        {loading ? 'Verifying...' : 'Verify Code'}
                       </Button>
-                      <p className="text-xs text-slate-400 text-center">
-                        Didn't receive the email? Check your spam folder or contact support.
+                    </form>
+
+                    <div className="space-y-4 pt-2">
+                      <p className="text-xs text-slate-400 text-center sm:text-left">
+                        Didn't receive the code? <button onClick={handleResendOtp} disabled={loading} className="text-primary font-bold hover:underline">Resend via Brevo</button>
                       </p>
+                      <Button onClick={() => setMode('signup')} variant="ghost" className="w-full h-10 rounded-xl text-xs font-bold text-slate-400">
+                        Back to Join
+                      </Button>
                     </div>
                   </div>
                 )}

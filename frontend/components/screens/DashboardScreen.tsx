@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock } from 'lucide-react';
+import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock, Calendar, Activity, TrendingUp } from 'lucide-react';
 import { useIsMobile, useIsTablet } from '@/hooks/use-media-query';
 import { getTimeBasedGreeting } from '@/lib/greeting';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCa
 import { QuickAddModal } from '@/components/health/QuickAddModal';
 import { EditReadingModal } from '@/components/health/EditReadingModal';
 import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading } from '@/types/health';
+import { motion } from 'framer-motion';
 
 interface DashboardScreenProps {
   medications: Medication[];
@@ -56,8 +57,8 @@ export const DashboardScreen = ({
   const isCompact = isMobile || isTablet;
 
   const today = useMemo(() => new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
+    weekday: 'short',
+    month: 'short',
     day: 'numeric'
   }), []);
 
@@ -68,12 +69,29 @@ export const DashboardScreen = ({
 
   const pendingMeds = todayLogs.filter(log => log.status === 'pending');
   const takenMeds = todayLogs.filter(log => log.status === 'taken');
+  const totalMeds = todayLogs.length;
+  const progressPercent = totalMeds > 0 ? (takenMeds.length / totalMeds) * 100 : 0;
 
   const latestBloodSugar = bloodSugarReadings[0];
   const latestBloodPressure = bloodPressureReadings[0];
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen bg-slate-50/50 pb-32">
       <Header
         title={getTimeBasedGreeting(userName)}
         subtitle={today}
@@ -81,134 +99,261 @@ export const DashboardScreen = ({
         onSettingsClick={onSettingsClick}
       />
 
-      <main className="px-4 py-6 space-y-6">
-        {/* Quick Status Summary */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/20">
-                <CheckCircle2 className="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <p className="text-display text-success">{takenMeds.length}</p>
-                <p className="text-label text-muted-foreground">Taken</p>
+      <motion.main 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="px-6 py-8 max-w-7xl mx-auto space-y-10"
+      >
+        {/* Daily Progress Section */}
+        <motion.section variants={item} className="grid lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 overflow-hidden border-none shadow-xl shadow-slate-200/50 bg-white group">
+            <CardContent className="p-0">
+              <div className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 bg-gradient-to-br from-white to-slate-50">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                    <Activity size={12} /> Daily Adherence
+                  </div>
+                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                    Your health is our <br />
+                    <span className="text-primary">top priority today.</span>
+                  </h2>
+                  <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
+                    You've completed {takenMeds.length} of {totalMeds} medications scheduled for today. Keep up the great work!
+                  </p>
+                </div>
+                
+                <div className="relative flex items-center justify-center shrink-0">
+                  <svg className="w-32 h-32 transform -rotate-90">
+                    <circle
+                      cx="64"
+                      cy="64"
+                      r="58"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="transparent"
+                      className="text-slate-100"
+                    />
+                    <circle
+                      cx="64"
+                      cy="64"
+                      r="58"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="transparent"
+                      strokeDasharray={364.4}
+                      strokeDashoffset={364.4 - (364.4 * progressPercent) / 100}
+                      className="text-primary transition-all duration-1000 ease-out"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-black text-slate-900">{Math.round(progressPercent)}%</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Goal</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/20">
-                <Clock className="h-6 w-6 text-warning" />
-              </div>
-              <div>
-                <p className="text-display text-warning">{pendingMeds.length}</p>
-                <p className="text-label text-muted-foreground">Pending</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 gap-6">
+            <Card className="border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10 text-success group-hover:scale-110 transition-transform">
+                  <CheckCircle2 size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-slate-900 leading-none">{takenMeds.length}</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">Confirmed Taken</p>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Quick Add Buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => setAddModal('blood_sugar')}
-            className="h-20 flex-col gap-2 border-2 border-dashed hover:border-primary hover:bg-primary/5"
-          >
-            <Droplets className="h-6 w-6 text-primary" />
-            <span className="text-label">Add Blood Sugar</span>
-          </Button>
+            <Card className="border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden group hover:shadow-2xl hover:shadow-warning/5 transition-all">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-warning/10 text-warning group-hover:scale-110 transition-transform">
+                  <Clock size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-slate-900 leading-none">{pendingMeds.length}</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">Awaiting Action</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
 
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => setAddModal('blood_pressure')}
-            className="h-20 flex-col gap-2 border-2 border-dashed hover:border-accent hover:bg-accent/5"
-          >
-            <Heart className="h-6 w-6 text-accent" />
-            <span className="text-label">Add Blood Pressure</span>
-          </Button>
-        </div>
-
-        {/* Today's Medications */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-title">Today's Medications</h2>
+        {/* Quick Actions */}
+        <motion.section variants={item} className="space-y-4">
+          <div className="flex items-center gap-2 mb-6">
+             <div className="h-6 w-1 bg-primary rounded-full" />
+             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Quick Actions</h3>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              onClick={() => setAddModal('blood_sugar')}
+              className="h-24 justify-start p-6 bg-white border-none shadow-lg shadow-slate-100/50 hover:shadow-primary/10 hover:bg-white group rounded-[2rem]"
+            >
+              <div className="flex items-center gap-4 w-full">
+                <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                  <Droplets size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-slate-900">Add Glucose</p>
+                  <p className="text-[10px] text-slate-400">Log blood sugar levels</p>
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setAddModal('blood_pressure')}
+              className="h-24 justify-start p-6 bg-white border-none shadow-lg shadow-slate-100/50 hover:shadow-accent/10 hover:bg-white group rounded-[2rem]"
+            >
+              <div className="flex items-center gap-4 w-full">
+                <div className="h-12 w-12 rounded-2xl bg-accent/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all">
+                  <Heart size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-slate-900">Add Pressure</p>
+                  <p className="text-[10px] text-slate-400">Log blood pressure</p>
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
               onClick={() => onNavigate('medications')}
-              className="text-primary"
+              className="h-24 justify-start p-6 bg-white border-none shadow-lg shadow-slate-100/50 hover:shadow-slate-200/20 hover:bg-white group rounded-[2rem] hidden sm:flex"
             >
-              View All
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <div className="flex items-center gap-4 w-full">
+                <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                  <Calendar size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-slate-900">Schedule</p>
+                  <p className="text-[10px] text-slate-400">View full calendar</p>
+                </div>
+              </div>
             </Button>
-          </div>
 
-          <div className="space-y-3">
-            {pendingMeds.slice(0, 3).map((log) => {
-              const medication = medications.find(m => m.id === log.medication_id);
-              if (!medication) return null;
-              return (
-                <MedicationCard
-                  key={log.id}
-                  medication={medication}
-                  log={log}
-                  onMarkTaken={onMarkMedicationTaken}
-                />
-              );
-            })}
-            {pendingMeds.length === 0 && (
-              <Card className="bg-success/5 border-success/20">
-                <CardContent className="p-6 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-3" />
-                  <p className="text-title text-success">All done for now!</p>
-                  <p className="text-body text-muted-foreground">Great job taking your medications</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </section>
-
-        {/* Latest Readings */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-title">Latest Readings</h2>
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onNavigate('readings')}
-              className="text-primary"
+              variant="outline"
+              onClick={() => setAddModal(null)}
+              className="h-24 justify-start p-6 bg-white border-none shadow-lg shadow-slate-100/50 hover:shadow-slate-200/20 hover:bg-white group rounded-[2rem] hidden lg:flex"
             >
-              View Trends
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <div className="flex items-center gap-4 w-full">
+                <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                  <TrendingUp size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-slate-900">Reports</p>
+                  <p className="text-[10px] text-slate-400">Coming soon</p>
+                </div>
+              </div>
             </Button>
           </div>
+        </motion.section>
 
-          <div className="space-y-3">
-            {latestBloodSugar && (
-              <BloodSugarCard
-                reading={latestBloodSugar}
-                showActions={!isMobile}
-                compact={isCompact}
-                onEdit={(reading) => setEditReading({ type: 'blood_sugar', reading })}
-                onDelete={onDeleteBloodSugar}
-              />
-            )}
-            {latestBloodPressure && (
-              <BloodPressureCard
-                reading={latestBloodPressure}
-                showActions={!isMobile}
-                compact={isCompact}
-                onEdit={(reading) => setEditReading({ type: 'blood_pressure', reading })}
-                onDelete={onDeleteBloodPressure}
-              />
-            )}
-          </div>
-        </section>
-      </main>
+        {/* Dynamic Content Grid */}
+        <div className="grid lg:grid-cols-2 gap-10">
+          {/* Today's Medications */}
+          <motion.section variants={item} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                 <div className="h-6 w-1 bg-primary rounded-full" />
+                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Today's Protocol</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('medications')}
+                className="text-xs font-bold text-primary hover:bg-primary/5 uppercase tracking-tighter"
+              >
+                Expand <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {pendingMeds.length > 0 ? (
+                pendingMeds.slice(0, 3).map((log) => {
+                  const medication = medications.find(m => m.id === log.medication_id);
+                  if (!medication) return null;
+                  return (
+                    <motion.div key={log.id} whileHover={{ x: 4 }} transition={{ type: 'spring', stiffness: 300 }}>
+                      <MedicationCard
+                        medication={medication}
+                        log={log}
+                        onMarkTaken={onMarkMedicationTaken}
+                      />
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <Card className="border-none bg-success/5 shadow-none p-10 text-center rounded-[2rem]">
+                  <CheckCircle2 size={48} className="text-success mx-auto mb-4 opacity-50" />
+                  <h4 className="text-lg font-bold text-success">Protocol Complete</h4>
+                  <p className="text-xs text-success/70 mt-1 max-w-[200px] mx-auto">All scheduled medications for today have been confirmed.</p>
+                </Card>
+              )}
+            </div>
+          </motion.section>
+
+          {/* Latest Vitals */}
+          <motion.section variants={item} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                 <div className="h-6 w-1 bg-accent rounded-full" />
+                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Vitals Status</h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('readings')}
+                className="text-xs font-bold text-accent hover:bg-accent/5 uppercase tracking-tighter"
+              >
+                Analytics <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {latestBloodSugar || latestBloodPressure ? (
+                <>
+                  {latestBloodSugar && (
+                    <motion.div whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 300 }}>
+                      <BloodSugarCard
+                        reading={latestBloodSugar}
+                        showActions={!isMobile}
+                        compact={isCompact}
+                        onEdit={(reading) => setEditReading({ type: 'blood_sugar', reading })}
+                        onDelete={onDeleteBloodSugar}
+                      />
+                    </motion.div>
+                  )}
+                  {latestBloodPressure && (
+                    <motion.div whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 300 }}>
+                      <BloodPressureCard
+                        reading={latestBloodPressure}
+                        showActions={!isMobile}
+                        compact={isCompact}
+                        onEdit={(reading) => setEditReading({ type: 'blood_pressure', reading })}
+                        onDelete={onDeleteBloodPressure}
+                      />
+                    </motion.div>
+                  )}
+                </>
+              ) : (
+                <Card className="border-none bg-slate-100 shadow-none p-10 text-center rounded-[2rem]">
+                  <Activity size={48} className="text-slate-300 mx-auto mb-4" />
+                  <h4 className="text-lg font-bold text-slate-400">No Vitals Logged</h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto">Start by adding your first reading using the quick actions above.</p>
+                </Card>
+              )}
+            </div>
+          </motion.section>
+        </div>
+      </motion.main>
 
       {addModal && (
         <QuickAddModal
