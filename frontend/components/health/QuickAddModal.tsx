@@ -115,16 +115,17 @@ export const QuickAddModal = ({
                   </div>
                   
                   <div className="space-y-3">
-                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Meal Context</Label>
-                    <Select value={mealContext} onValueChange={(v) => setMealContext(v as BloodSugarReading['meal_context'])}>
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Meal Type</Label>
+                    <Select value={mealType} onValueChange={(v) => setMealType(v as BloodSugarReading['meal_type'])}>
                       <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold text-slate-700">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
                         <SelectItem value="fasting" className="font-bold py-3">🌅 Fasting (Morning)</SelectItem>
-                        <SelectItem value="before_meal" className="font-bold py-3">🍽️ Before Meal</SelectItem>
-                        <SelectItem value="after_meal" className="font-bold py-3">🍰 After Meal (2h)</SelectItem>
-                        <SelectItem value="bedtime" className="font-bold py-3">🌙 Bedtime</SelectItem>
+                        <SelectItem value="breakfast" className="font-bold py-3">🍳 Breakfast</SelectItem>
+                        <SelectItem value="lunch" className="font-bold py-3">🥗 Lunch</SelectItem>
+                        <SelectItem value="dinner" className="font-bold py-3">🍲 Dinner</SelectItem>
+                        <SelectItem value="snack" className="font-bold py-3">🥨 Snack</SelectItem>
                         <SelectItem value="other" className="font-bold py-3">📍 Other</SelectItem>
                       </SelectContent>
                     </Select>

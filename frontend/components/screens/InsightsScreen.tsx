@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useHealth } from '@/contexts/HealthContext';
+import { analyzeHealthPatterns, HealthDataSnapshot } from '@/services/gemini';
+import { toast } from 'sonner';
+import { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -29,6 +32,48 @@ export const InsightsScreen = () => {
     calculateGlucoseStability,
     calculateAdherenceRate
   } = useHealth();
+
+  const [aiInsight, setAiInsight] = useState<{
+    pattern: string;
+    explanation: string;
+    recommendation: string;
+    type: 'warning' | 'success' | 'info';
+  } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleGenerateInsights = async () => {
+    setIsAnalyzing(true);
+    try {
+      const data: HealthDataSnapshot = {
+        bloodSugar: bloodSugarReadings.slice(0, 10).map(r => ({
+          value: r.value,
+          unit: r.unit,
+          meal_type: r.meal_type,
+          recorded_at: r.recorded_at
+        })),
+        bloodPressure: bloodPressureReadings.slice(0, 5).map(r => ({
+          systolic: r.systolic,
+          diastolic: r.diastolic,
+          pulse: r.pulse || undefined,
+          recorded_at: r.recorded_at
+        })),
+        medications: medicationLogs.slice(0, 10).map(l => ({
+          name: 'Medication', // You could join with medications data if needed
+          dosage: 'N/A',
+          status: l.status,
+          date: l.date
+        }))
+      };
+
+      const result = await analyzeHealthPatterns(data);
+      setAiInsight(result);
+      toast.success('AI Health Analysis Complete');
+    } catch (error) {
+      toast.error('AI Analysis failed. Please check your Gemini API key.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   // Generate trends data from real readings (last 7 days)
   const trendsData = useMemo(() => {
@@ -207,62 +252,125 @@ export const InsightsScreen = () => {
               </Card>
            </div>
 
-           {/* Pattern Analysis */}
-           <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-3">
-                    <div className="h-6 w-1 bg-[#006672ff] rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Pattern Intelligence</h3>
-                 </div>
-              </div>
+            {/* Pattern Analysis */}
+            <div className="space-y-6">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                     <div className="h-6 w-1 bg-[#006672ff] rounded-full" />
+                     <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Pattern Intelligence</h3>
+                  </div>
+                  {!aiInsight && (
+                    <Button 
+                      onClick={handleGenerateInsights} 
+                      disabled={isAnalyzing}
+                      className="rounded-xl bg-[#004c56ff] hover:bg-[#003a42] text-white font-black text-[10px] uppercase h-8 px-4"
+                    >
+                      {isAnalyzing ? 'Analyzing...' : 'Generate AI Audit'}
+                    </Button>
+                  )}
+               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                 <motion.div whileHover={{ x: 4 }} className="p-6 bg-white rounded-3xl shadow-lg shadow-slate-200/50 flex items-center justify-between group">
-                    <div className="flex items-center gap-5">
-                       <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
-                          <TrendingUp size={20} />
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">Postprandial Spike</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pattern Detected Yesterday</p>
-                       </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-all" />
-                 </motion.div>
+               <div className="grid grid-cols-1 gap-4">
+                  {isAnalyzing && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="p-12 bg-white rounded-3xl shadow-lg border border-dashed border-slate-100 flex flex-col items-center justify-center gap-4 text-center"
+                    >
+                      <div className="w-12 h-12 rounded-full border-4 border-[#004c56ff] border-t-transparent animate-spin" />
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Consulting Gemini AI...</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Analyzing longitudinal markers</p>
+                      </div>
+                    </motion.div>
+                  )}
 
-                 <motion.div whileHover={{ x: 4 }} className="p-6 bg-white rounded-3xl shadow-lg shadow-slate-200/50 flex items-center justify-between group">
-                    <div className="flex items-center gap-5">
-                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
-                          <Target size={20} />
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">Target Range Consistency</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">85% of readings within range</p>
-                       </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-all" />
-                 </motion.div>
+                  {aiInsight ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="space-y-4"
+                    >
+                      <div className={`p-6 rounded-3xl shadow-lg flex items-center justify-between group ${
+                        aiInsight.type === 'warning' ? 'bg-orange-50 border border-orange-100' : 'bg-[#f0fdfaff] border border-[#d1f7efff]'
+                      }`}>
+                        <div className="flex items-center gap-5">
+                           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                             aiInsight.type === 'warning' ? 'bg-white text-orange-500' : 'bg-white text-primary'
+                           }`}>
+                              {aiInsight.type === 'warning' ? <TrendingUp size={20} /> : <Target size={20} />}
+                           </div>
+                           <div>
+                              <p className="text-sm font-black text-slate-900">{aiInsight.pattern}</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">AI Detected Pattern</p>
+                           </div>
+                        </div>
+                        <Info size={16} className="text-slate-300" />
+                      </div>
 
-                 <Card className="border-none bg-[#004c56ff] shadow-xl shadow-[#004c5633] rounded-[24px] overflow-hidden">
-                    <CardContent className="p-8">
-                       <div className="flex items-center gap-3 mb-4">
-                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                             <Activity size={16} className="text-white" />
+                      <Card className="border-none bg-white shadow-xl shadow-slate-200/50 rounded-[24px] overflow-hidden">
+                        <CardContent className="p-8">
+                          <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">AI Explanation</h4>
+                          <p className="text-sm font-medium text-slate-600 leading-relaxed mb-6">
+                            {aiInsight.explanation}
+                          </p>
+                          <div className="p-5 bg-[#004c56ff] rounded-2xl text-white">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Zap size={14} className="text-emerald-400" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Actionable Suggestion</span>
+                            </div>
+                            <p className="text-sm font-bold">{aiInsight.recommendation}</p>
                           </div>
-                          <h4 className="text-xs font-black uppercase text-white/60 tracking-widest">Health Projection</h4>
-                       </div>
-                        <p className="text-sm font-bold text-white leading-relaxed">
-                           {stability > 85 && adherence > 90 
-                             ? "At your current adherence and stability rate, you are on track to significantly improve your long-term health markers within 3 months."
-                             : stability < 70 
-                             ? "Focusing on stabilizing your glucose spikes could help improve your overall health score by up to 15 points."
-                             : "Maintaining consistent medication adherence is key to reaching your target health goals."
-                           }
-                        </p>
-                    </CardContent>
-                 </Card>
-              </div>
-           </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setAiInsight(null)}
+                        className="w-full text-[10px] font-black uppercase text-slate-400 tracking-widest"
+                      >
+                        Reset Analysis
+                      </Button>
+                    </motion.div>
+                  ) : !isAnalyzing && (
+                    <>
+                      <motion.div whileHover={{ x: 4 }} className="p-6 bg-white rounded-3xl shadow-lg shadow-slate-200/50 flex items-center justify-between group">
+                        <div className="flex items-center gap-5">
+                           <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+                              <TrendingUp size={20} />
+                           </div>
+                           <div>
+                              <p className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">Postprandial Spike</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Historical Data Match</p>
+                           </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-all" />
+                      </motion.div>
+
+                      <Card className="border-none bg-[#004c56ff] shadow-xl shadow-[#004c5633] rounded-[24px] overflow-hidden">
+                        <CardContent className="p-8">
+                           <div className="flex items-center gap-3 mb-4">
+                              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                 <Activity size={16} className="text-white" />
+                              </div>
+                              <h4 className="text-xs font-black uppercase text-white/60 tracking-widest">Health Projection</h4>
+                           </div>
+                            <p className="text-sm font-bold text-white leading-relaxed">
+                               Run a real-time AI audit to see deep patterns in your recent readings and clinical adherence.
+                            </p>
+                            <Button 
+                              variant="ghost" 
+                              onClick={handleGenerateInsights}
+                              className="mt-6 w-full bg-white/10 hover:bg-white/20 text-white rounded-xl h-12 font-black text-xs"
+                            >
+                              Run Analysis Now
+                            </Button>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+               </div>
+            </div>
         </section>
       </main>
     </div>

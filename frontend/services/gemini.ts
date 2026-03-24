@@ -1,0 +1,61 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+/**
+ * Interface for health data snapshot sent to Gemini
+ */
+export interface HealthDataSnapshot {
+  bloodSugar: Array<{ value: number; unit: string; meal_type: string; recorded_at: string }>;
+  bloodPressure: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>;
+  medications: Array<{ name: string; dosage: string; status: string; date: string }>;
+}
+
+/**
+ * Analyzes health data using Gemini Pro to find patterns and provide insights.
+ */
+export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
+  if (!API_KEY) {
+    throw new Error("Gemini API key is missing. Please add it to your .env file.");
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
+  const prompt = `
+    You are an AI Medical Health Analyst for the CareForAb app. 
+    Analyze the following patient health data and provide:
+    1. One primary pattern detected (e.g., "Post-dinner glucose spike").
+    2. A brief 2-sentence explanation of why this pattern is occurring based on the data.
+    3. A specific, actionable recommendation for the patient.
+
+    Data Snapshot:
+    - Glucose Readings: ${JSON.stringify(data.bloodSugar)}
+    - Blood Pressure: ${JSON.stringify(data.bloodPressure)}
+    - Medication Adherence: ${JSON.stringify(data.medications)}
+
+    Expected JSON Format:
+    {
+      "pattern": "Pattern Name",
+      "explanation": "Explanation here...",
+      "recommendation": "Recommendation here...",
+      "type": "warning" | "success" | "info"
+    }
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Extract JSON from response (Gemini sometimes wraps it in markdown blocks)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    throw new Error("Failed to parse AI response.");
+  } catch (error) {
+    console.error("Gemini Analysis Error:", error);
+    throw error;
+  }
+};

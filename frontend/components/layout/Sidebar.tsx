@@ -14,8 +14,9 @@ interface SidebarItem {
 
 const items: SidebarItem[] = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
-  { icon: Zap, label: "Insights", href: "/insights" },
+  { icon: Activity, label: "Vitals", href: "/vitals" },
   { icon: ClipboardList, label: "Medications", href: "/medications" },
+  { icon: Zap, label: "Insights", href: "/insights" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
