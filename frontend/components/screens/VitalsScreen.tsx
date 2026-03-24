@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Activity, 
   Heart, 
@@ -10,16 +10,15 @@ import {
   Plus, 
   ChevronRight, 
   Calendar,
-  Filter,
-  ArrowUpRight,
-  ArrowDownRight,
-  User
+  User,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { useHealth } from '@/contexts/HealthContext';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
+import { analyzeBloodPressure } from '@/services/gemini';
 import {
   AreaChart,
   Area,
@@ -41,6 +40,26 @@ export const VitalsScreen = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'blood_sugar' | 'blood_pressure'>('blood_sugar');
+  const [bpAnalysis, setBpAnalysis] = useState<{
+    headline: string; detail: string; status: 'stable' | 'warning' | 'critical'
+  } | null>(null);
+  const [isBpLoading, setIsBpLoading] = useState(false);
+
+  // Auto-generate BP analysis when data is loaded
+  useEffect(() => {
+    if (bloodPressureReadings.length === 0 || bpAnalysis) return;
+    setIsBpLoading(true);
+    analyzeBloodPressure(bloodPressureReadings.map(r => ({
+      systolic: r.systolic,
+      diastolic: r.diastolic,
+      pulse: r.pulse,
+      recorded_at: r.recorded_at
+    }))).then(res => {
+      setBpAnalysis(res);
+    }).catch(() => {
+      // Fail silently - don't disrupt UI if AI is unavailable
+    }).finally(() => setIsBpLoading(false));
+  }, [bloodPressureReadings]);
 
   // Chart data processing
   const chartData = useMemo(() => {
@@ -207,12 +226,32 @@ export const VitalsScreen = () => {
                      <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
                         <Heart size={16} />
                      </div>
-                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Heart Health</span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Heart Health · AI</span>
                   </div>
-                  <h4 className="text-xl font-black mb-2 tracking-tight">Vascular Stability</h4>
-                  <p className="text-xs font-bold leading-relaxed opacity-70">
-                     Your blood pressure has remained consistent with a 2% variance over the last 7 cycles.
-                  </p>
+                  {isBpLoading ? (
+                    <div className="flex items-center gap-3">
+                      <Loader2 size={20} className="animate-spin opacity-60" />
+                      <span className="text-xs font-bold opacity-60">Analyzing BP patterns...</span>
+                    </div>
+                  ) : bpAnalysis ? (
+                    <>
+                      <h4 className="text-xl font-black mb-2 tracking-tight">{bpAnalysis.headline}</h4>
+                      <p className="text-xs font-bold leading-relaxed opacity-70">{bpAnalysis.detail}</p>
+                      <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                        bpAnalysis.status === 'stable' ? 'bg-emerald-400/20 text-emerald-300' :
+                        bpAnalysis.status === 'warning' ? 'bg-amber-400/20 text-amber-300' :
+                        'bg-red-400/20 text-red-300'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {bpAnalysis.status}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="text-xl font-black mb-2 tracking-tight">Vascular Analysis</h4>
+                      <p className="text-xs font-bold leading-relaxed opacity-60">Log blood pressure readings to enable AI-powered cardiovascular analysis.</p>
+                    </>
+                  )}
                </div>
             </Card>
           </motion.div>

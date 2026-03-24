@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Droplets, Heart, X, Check, Save } from 'lucide-react';
+import { Droplets, Heart, X, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { BloodSugarReading, BloodPressureReading } from '@/types/health';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface QuickAddModalProps {
   type: 'blood_sugar' | 'blood_pressure';
@@ -31,7 +31,7 @@ export const QuickAddModal = ({
 }: QuickAddModalProps) => {
   // Blood sugar state
   const [glucoseValue, setGlucoseValue] = useState('');
-  const [mealContext, setMealContext] = useState<BloodSugarReading['meal_context']>('fasting');
+  const [mealType, setMealType] = useState<BloodSugarReading['meal_type']>('fasting');
   
   // Blood pressure state
   const [systolic, setSystolic] = useState('');
@@ -45,7 +45,7 @@ export const QuickAddModal = ({
         toast.error('Please enter a blood sugar value between 20 and 600 mg/dL');
         return;
       }
-      onAddBloodSugar({ value, unit: 'mg/dL', meal_context: mealContext });
+      onAddBloodSugar({ value, unit: 'mg/dL', meal_type: mealType });
       toast.success(`Blood sugar ${value} mg/dL recorded.`);
     } else {
       const sys = parseInt(systolic);

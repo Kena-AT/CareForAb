@@ -248,13 +248,13 @@ export const useHealthData = () => {
     return Math.round((taken / medicationLogs.length) * 100);
   }, [medicationLogs]);
 
-  const getLatestPulse = useCallback(() => {
+  const getLatestPulse = useCallback((): number | null => {
     const latestBP = bloodPressureReadings[0];
-    return latestBP?.pulse || 72; // Default to normal if no data
+    return latestBP?.pulse ?? null;
   }, [bloodPressureReadings]);
 
-  const getLatestOxygen = useCallback(() => {
-    return oxygenReadings[0]?.value || 98; // Default to normal if no data
+  const getLatestOxygen = useCallback((): number | null => {
+    return oxygenReadings[0]?.value ?? null;
   }, [oxygenReadings]);
 
   const getTodaySteps = useCallback(() => {

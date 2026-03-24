@@ -29,11 +29,11 @@ interface DashboardScreenProps {
   onNavigate: (tab: 'medications' | 'readings') => void;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
-  pulse?: number;
-  oxygen?: number;
-  steps?: number;
-  healthScore?: number;
-  adherenceStreak?: number;
+  pulse?: number | null;
+  oxygen?: number | null;
+  steps?: number | null;
+  healthScore?: number | null;
+  adherenceStreak?: number | null;
   userName?: string | null;
 }
 
@@ -52,11 +52,11 @@ export const DashboardScreen = ({
   onNavigate,
   onNotificationsClick,
   onSettingsClick,
-  pulse = 72,
-  oxygen = 98,
-  steps = 0,
-  healthScore = 0,
-  adherenceStreak = 0,
+  pulse,
+  oxygen,
+  steps,
+  healthScore,
+  adherenceStreak,
   userName,
 }: DashboardScreenProps) => {
   const [addModal, setAddModal] = useState<'blood_sugar' | 'blood_pressure' | null>(null);
@@ -152,7 +152,7 @@ export const DashboardScreen = ({
                  <TrendingUp size={16} className="text-success opacity-50" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{pulse}</p>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{pulse ?? '--'}</p>
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Heart Rate (Avg)</p>
               </div>
            </Card>
@@ -166,7 +166,7 @@ export const DashboardScreen = ({
                  <CheckCircle2 size={16} className="text-success opacity-50" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{oxygen}%</p>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{oxygen !== null && oxygen !== undefined ? `${oxygen}%` : '--'}</p>
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Blood Oxygen</p>
               </div>
            </Card>
@@ -180,7 +180,7 @@ export const DashboardScreen = ({
                  <TrendingUp size={16} className="text-success opacity-50" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{steps.toLocaleString()}</p>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{steps !== null && steps !== undefined ? steps.toLocaleString() : '--'}</p>
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Active Steps</p>
               </div>
            </Card>
@@ -261,17 +261,17 @@ export const DashboardScreen = ({
                  <div className="space-y-4">
                     <div className="p-4 bg-white rounded-2xl shadow-sm">
                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Health Score</p>
-                       <p className="text-2xl font-black text-slate-900 mt-1">{healthScore}/100</p>
-                       <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                          <div className="h-full bg-primary" style={{ width: `${healthScore}%` }} />
-                       </div>
-                    </div>
-                    
-                    <div className="p-4 bg-white rounded-2xl shadow-sm">
-                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Adherence Streak</p>
-                       <p className="text-2xl font-black text-slate-900 mt-1">{adherenceStreak} Days</p>
-                       <p className="text-[10px] text-success font-bold mt-1">Keep it up!</p>
-                    </div>
+                        <p className="text-2xl font-black text-slate-900 mt-1">{healthScore !== null && healthScore !== undefined ? `${healthScore}/100` : '--/100'}</p>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                           <div className="h-full bg-primary" style={{ width: `${healthScore ?? 0}%` }} />
+                        </div>
+                     </div>
+                     
+                     <div className="p-4 bg-white rounded-2xl shadow-sm">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Adherence Streak</p>
+                        <p className="text-2xl font-black text-slate-900 mt-1">{adherenceStreak !== null && adherenceStreak !== undefined ? `${adherenceStreak} Days` : '-- Days'}</p>
+                        {adherenceStreak ? <p className="text-[10px] text-success font-bold mt-1">Keep it up!</p> : <p className="text-[10px] text-slate-400 font-bold mt-1">Start tracking!</p>}
+                     </div>
 
                     <div className="p-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-between group cursor-pointer overflow-hidden relative">
                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
