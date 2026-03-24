@@ -19,6 +19,7 @@ export default function DashboardPage() {
     getTodaySteps,
     calculateHealthScore,
     calculateAdherenceStreak,
+    userName,
   } = useHealth();
 
   return (
@@ -36,6 +37,7 @@ export default function DashboardPage() {
       steps={getTodaySteps()}
       healthScore={calculateHealthScore()}
       adherenceStreak={calculateAdherenceStreak()}
+      userName={userName}
     />
   );
 }

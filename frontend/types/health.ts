@@ -23,7 +23,7 @@ export interface BloodSugarReading {
   id: string;
   value: number;
   unit: 'mg/dL' | 'mmol/L';
-  meal_context: 'fasting' | 'before_meal' | 'after_meal' | 'bedtime' | 'other';
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'fasting' | 'other';
   notes?: string | null;
   recorded_at: string;
 }

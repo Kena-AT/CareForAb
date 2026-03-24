@@ -20,6 +20,7 @@ export const useHealthData = () => {
   const [bloodPressureReadings, setBloodPressureReadings] = useState<BloodPressureReading[]>([]);
   const [oxygenReadings, setOxygenReadings] = useState<OxygenReading[]>([]);
   const [activityReadings, setActivityReadings] = useState<ActivityReading[]>([]);
+  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -32,20 +33,20 @@ export const useHealthData = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [medsRes, logsRes, sugarRes, bpRes, oxygenRes, activityRes] = await Promise.all([
+      const [medsRes, logsRes, sugarRes, bpRes, oxygenRes, activityRes, profileRes] = await Promise.all([
         supabase.from('medications').select('*').eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('medication_logs').select('*').eq('date', today),
         supabase.from('blood_sugar_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
         supabase.from('blood_pressure_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
         supabase.from('oxygen_readings' as any).select('*').order('recorded_at', { ascending: false }).limit(20),
-        supabase.from('activity_readings' as any).select('*').order('date', { ascending: false }).limit(7)
+        supabase.from('activity_readings' as any).select('*').order('date', { ascending: false }).limit(7),
+        supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
       ]);
 
       if (medsRes.error) throw medsRes.error;
       if (logsRes.error) throw logsRes.error;
       if (sugarRes.error) throw sugarRes.error;
       if (bpRes.error) throw bpRes.error;
-      // Oxygen and Activity might not exist yet, handle gracefully
       
       setMedications(medsRes.data as Medication[] || []);
       setMedicationLogs(logsRes.data as MedicationLog[] || []);
@@ -53,6 +54,7 @@ export const useHealthData = () => {
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
       setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
+      setProfile(profileRes.data as { full_name: string | null });
     } catch (error: any) {
       console.error('Error fetching health data:', error);
       toast.error('Failed to load health data');
@@ -294,7 +296,10 @@ export const useHealthData = () => {
 
   const calculateAdherenceStreak = useCallback(() => {
     if (medicationLogs.length === 0) return 0;
-    return medicationLogs.every(l => l.status === 'taken') ? 1 : 0;
+    // For now, return 1 if all logs today are taken, 0 otherwise
+    // In a real app, this would query historical log completeness
+    const taken = medicationLogs.filter(l => l.status === 'taken').length;
+    return taken === medicationLogs.length && taken > 0 ? 1 : 0;
   }, [medicationLogs]);
 
   return {
@@ -319,6 +324,7 @@ export const useHealthData = () => {
     getTodaySteps,
     calculateHealthScore,
     calculateAdherenceStreak,
+    userName: profile?.full_name,
     refetch: fetchData
   };
 };

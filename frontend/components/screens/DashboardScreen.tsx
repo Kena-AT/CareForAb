@@ -171,8 +171,22 @@ export const DashboardScreen = ({
               </div>
            </Card>
 
+           {/* Vitals Card: Activity/Steps */}
+           <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
+              <div className="flex items-start justify-between">
+                 <div className="p-3 rounded-2xl bg-orange-50 text-orange-500 group-hover:scale-110 transition-transform">
+                    <Activity size={24} />
+                 </div>
+                 <TrendingUp size={16} className="text-success opacity-50" />
+              </div>
+              <div>
+                 <p className="text-3xl font-black text-slate-900 leading-none">{steps.toLocaleString()}</p>
+                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Active Steps</p>
+              </div>
+           </Card>
+
            {/* Medication Summary Bento (Node xeIj5) */}
-           <Card className="lg:col-span-3 border-none bg-[#006672ff] shadow-xl shadow-[#00667233] rounded-[20px] p-8 text-white relative overflow-hidden group hover:shadow-2xl transition-all">
+           <Card className="lg:col-span-2 border-none bg-[#006672ff] shadow-xl shadow-[#00667233] rounded-[20px] p-8 text-white relative overflow-hidden group hover:shadow-2xl transition-all">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-125 transition-transform" />
               <div className="relative z-10 flex flex-col justify-between h-full">
                  <div className="flex items-center gap-3">
