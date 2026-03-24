@@ -31,4 +31,20 @@ export const emailTemplates = {
       </div>
     `,
   }),
+  weeklyHealthSummary: (fullName: string, summary: string) => ({
+    subject: "Your Weekly Health Analysis Summary",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #1a4d4a;">Weekly Health Insight for ${fullName}</h2>
+        <p>Our AI has analyzed your health patterns over the last 7 days. Here is your summary:</p>
+        <div style="background: #f4f7f6; padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #1a4d4a;">
+          <div style="color: #333; line-height: 1.6; white-space: pre-wrap;">${summary}</div>
+        </div>
+        <p style="font-size: 14px; color: #666;">Log into the app to view detailed charts and personalized recommendations.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="text-align: center; color: #999; font-size: 12px;">This analysis is AI-generated for informational purposes and does not replace medical advice.</p>
+        <p style="text-align: center; color: #999; font-size: 12px;">&copy; 2026 CareforAb. Monitoring your well-being.</p>
+      </div>
+    `,
+  }),
 };

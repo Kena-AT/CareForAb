@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock, Calendar, Activity, TrendingUp, Bell, Settings, User, ClipboardList } from 'lucide-react';
+import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock, Calendar, Activity, TrendingUp, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { getTimeBasedGreeting } from '@/lib/greeting';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Header } from '@/components/layout/Header';
 import { MedicationCard } from '@/components/health/MedicationCard';
 import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCard';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
@@ -84,24 +85,10 @@ export const DashboardScreen = ({
 
   return (
     <div className="min-h-screen bg-[#f6fafaff] pb-24">
-      {/* TopAppBar - Design bowVb */}
-      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="h-6 w-1 bg-primary rounded-full hidden lg:block" />
-           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">{today}</p>
-        </div>
-        <div className="flex items-center gap-3">
-           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 relative group">
-             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-             {pendingMeds.length > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-white" />}
-           </Button>
-           <Link href="/profile">
-             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
-               <User size={18} />
-             </div>
-           </Link>
-        </div>
-      </header>
+      <Header 
+        title={today} 
+        onSettingsClick={onSettingsClick}
+      />
 
       <motion.main 
         variants={container}

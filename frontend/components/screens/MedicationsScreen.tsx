@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight, Bell, Settings, User } from 'lucide-react';
+import { Plus, Pill, Edit, Trash2, MoreVertical, Calendar, Clock, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
@@ -56,23 +56,10 @@ export const MedicationsScreen = ({
 
   return (
     <div className="min-h-screen bg-[#f6fafaff] pb-24">
-      {/* Header - Design ruQjr */}
-      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="h-6 w-1 bg-primary rounded-full" />
-           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Therapeutic Protocol</p>
-        </div>
-        <div className="flex items-center gap-3">
-           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
-           <Link href="/profile">
-             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
-               <User size={18} />
-             </div>
-           </Link>
-        </div>
-      </header>
+      <Header 
+        title="Therapeutic Protocol" 
+        onSettingsClick={onSettingsClick}
+      />
       
       <main className="px-10 py-10 max-w-7xl mx-auto space-y-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

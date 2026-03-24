@@ -60,6 +60,24 @@ export class EmailService {
       return { success: false, error };
     }
   }
+
+  async sendWeeklyHealthSummary(to: string, fullName: string, summary: string) {
+    const template = emailTemplates.weeklyHealthSummary(fullName, summary);
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.subject = template.subject;
+    sendSmtpEmail.htmlContent = template.html;
+    sendSmtpEmail.sender = { "name": "CareforAb Analysis", "email": this.senderEmail };
+    sendSmtpEmail.to = [{ "email": to, "name": fullName }];
+
+    try {
+      await this.withRetry(() => this.apiInstance.sendTransacEmail(sendSmtpEmail));
+      return { success: true };
+    } catch (error) {
+      console.error('[EmailService] Failed to send weekly health summary after retries:', error);
+      return { success: false, error };
+    }
+  }
 }
 
 export const emailService = new EmailService();

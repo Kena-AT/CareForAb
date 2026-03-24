@@ -9,7 +9,7 @@ export interface MedicationReminder {
   time: string; // HH:mm format
 }
 
-const playNotificationSound = () => {
+export const playNotificationSound = () => {
   if (typeof window === 'undefined') return;
   try {
     // Using a remote beep sound as fallback if local file is missing

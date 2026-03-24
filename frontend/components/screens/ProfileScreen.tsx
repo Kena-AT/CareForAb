@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Bell, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Calendar, Moon, Sun, Settings, Activity } from 'lucide-react';
+import { User, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Calendar, Moon, Sun, Activity, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -138,21 +139,10 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
 
   return (
     <div className="min-h-screen bg-[#f6fafaff] pb-24">
-      {/* Header - Consistent with Global Design */}
-      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="h-6 w-1 bg-primary rounded-full" />
-           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Profile Architecture</p>
-        </div>
-        <div className="flex items-center gap-3">
-           <Button variant="ghost" size="icon" onClick={onNotificationsClick} className="w-10 h-10 rounded-xl hover:bg-slate-50 group">
-             <Bell size={18} className="text-slate-500 group-hover:text-primary transition-colors" />
-           </Button>
-           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-             <User size={18} />
-           </div>
-        </div>
-      </header>
+      <Header 
+        title="Profile Architecture" 
+        onSettingsClick={onSettingsClick}
+      />
 
       <main className="px-10 py-10 max-w-5xl mx-auto space-y-10">
         <section className="flex flex-col md:flex-row gap-10">

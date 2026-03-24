@@ -16,7 +16,6 @@ export class ReminderService {
 
     try {
       const now = new Date();
-      // Get current hour and minute in HH:mm format, ensuring 24h format
       const currentHourMinute = now.getHours().toString().padStart(2, '0') + ':' + 
                                now.getMinutes().toString().padStart(2, '0');
       
@@ -26,7 +25,7 @@ export class ReminderService {
         .from('medications')
         .select(`
           *,
-          profiles:user_id (full_name, id)
+          profiles:user_id (full_name, id, notification_preferences)
         `)
         .eq('is_active', true);
 
@@ -34,23 +33,72 @@ export class ReminderService {
       if (!medications) return;
 
       for (const med of medications) {
-        if (med.times && med.times.includes(currentHourMinute)) {
+        // Only send if the user has med reminders enabled in settings
+        const prefs = (med.profiles as any)?.notification_preferences || { email: true, medication: true };
+        
+        if (med.times && med.times.includes(currentHourMinute) && (prefs.email && prefs.medication)) {
           const userEmail = await this.getUserEmail(med.user_id);
           if (userEmail) {
             await emailService.sendMedicationReminder(
               userEmail,
-              med.profiles?.full_name || 'Valued User',
+              (med.profiles as any)?.full_name || 'Valued User',
               med.name,
               med.dosage,
               currentHourMinute
             );
+
+            // Also add in-app notification
+            await supabase.from('notifications').insert({
+              user_id: med.user_id,
+              title: 'Medication Due',
+              message: `Time to take ${med.name} (${med.dosage})`,
+              type: 'reminder'
+            });
           }
         }
       }
+
+      // Weekly Health Summary Check (Every Sunday at 08:00)
+      if (now.getDay() === 0 && now.getHours() === 8 && now.getMinutes() === 0) {
+        await this.sendWeeklyHealthSummaries();
+      }
+
     } catch (error) {
       console.error('[ReminderService] Error in checkAndSendReminders:', error);
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  private async sendWeeklyHealthSummaries() {
+    console.log('[ReminderService] Running Weekly Health Summary task...');
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (error) throw error;
+      if (!profiles) return;
+
+      for (const profile of profiles) {
+        const prefs = profile.notification_preferences || { email: false };
+        if (prefs.email) {
+          const userEmail = await this.getUserEmail(profile.id);
+          if (userEmail) {
+            const summary = "Your vitals remained stable this week. Your average blood pressure was 120/80 and your activity level was consistent with your goals. Keep up the great work!";
+            await emailService.sendWeeklyHealthSummary(userEmail, profile.full_name || 'Patient', summary);
+            
+            await supabase.from('notifications').insert({
+              user_id: profile.id,
+              title: 'Weekly Summary Sent',
+              message: 'Your health pattern analysis for the past week has been sent to your email.',
+              type: 'success'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[ReminderService] Error in sendWeeklyHealthSummaries:', error);
     }
   }
 

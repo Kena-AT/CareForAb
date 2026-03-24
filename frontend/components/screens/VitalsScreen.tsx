@@ -14,7 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Header } from '@/components/layout/Header';
 import { Card, CardContent } from '@/components/ui/card';
 import { useHealth } from '@/contexts/HealthContext';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
@@ -79,32 +79,7 @@ export const VitalsScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#f6fafaff] pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="h-6 w-1 bg-[#004c56ff] rounded-full" />
-           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Health Readings (Vitals)</p>
-        </div>
-        <div className="flex items-center gap-4">
-           <Button variant="ghost" size="sm" className="rounded-xl h-10 px-4 font-bold text-slate-400">
-              <Calendar size={16} className="mr-2" /> 7D View
-           </Button>
-           <Button 
-            onClick={() => {
-                setModalType('blood_sugar');
-                setIsAddModalOpen(true);
-            }}
-            className="rounded-xl h-10 px-6 bg-[#004c56ff] hover:bg-[#003a42] text-white font-black text-xs gap-2 shadow-lg shadow-[#004c5622]"
-           >
-              <Plus size={16} /> New Entry
-           </Button>
-           <Link href="/profile">
-             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
-               <User size={18} />
-             </div>
-           </Link>
-        </div>
-      </header>
+      <Header title="Health Readings" subtitle="Vitals" />
 
       <main className="px-10 py-10 max-w-7xl mx-auto space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

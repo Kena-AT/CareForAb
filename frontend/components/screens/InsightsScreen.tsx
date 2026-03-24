@@ -2,10 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
-import { Activity, TrendingUp, TrendingDown, Target, Zap, Heart, Droplets, Calendar, ChevronRight, Info, User } from 'lucide-react';
-import Link from 'next/link';
+import { Activity, TrendingUp, TrendingDown, Target, Zap, Heart, Droplets, Calendar, ChevronRight, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Header } from '@/components/layout/Header';
 import { useHealth } from '@/contexts/HealthContext';
 import { analyzeHealthPatterns, HealthDataSnapshot } from '@/services/gemini';
 import { toast } from 'sonner';
@@ -186,37 +186,30 @@ export const InsightsScreen = () => {
   return (
     <div className="min-h-screen bg-[#f6fafaff] pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-40 h-16 bg-[#f6fafacc] backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="h-6 w-1 bg-primary rounded-full" />
-           <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Health Insights Protocol</p>
-        </div>
-        <div className="flex items-center gap-2">
-           <div className="flex bg-slate-100 p-1 rounded-xl">
-              {[7, 14, 30].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => {
-                    setTimeframe(t as 7|14|30);
-                    setAiInsight(null); // Reset AI when data scope changes
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                    timeframe === t 
-                      ? 'bg-white text-primary shadow-sm' 
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  {t}D
-                </button>
-              ))}
-           </div>
-           <Link href="/profile">
-             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
-               <User size={18} />
-             </div>
-           </Link>
-        </div>
-      </header>
+      <Header 
+        title="Health Insights" 
+        subtitle="Protocol"
+        rightElement={
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            {[7, 14, 30].map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setTimeframe(t as 7|14|30);
+                  setAiInsight(null);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  timeframe === t 
+                    ? 'bg-white text-primary shadow-sm' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {t}D
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <main className="px-10 py-10 max-w-7xl mx-auto space-y-10">
         {/* Top Insights Cards */}
