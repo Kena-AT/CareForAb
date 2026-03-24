@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { privacyService } from '../services/privacyService';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -17,7 +18,7 @@ export const errorHandler = (
   console.error(`[Error] ${statusCode} - ${message}`, {
     path: req.path,
     method: req.method,
-    details: err.details,
+    details: privacyService.sanitizeRequestData(err.details),
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 
