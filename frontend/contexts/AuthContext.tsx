@@ -24,11 +24,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+    const HEARTBEAT_INTERVAL = 60 * 1000; // 1 minute
+
+    const checkSessionExpiry = () => {
+      const lastActivity = localStorage.getItem('last_activity');
+      if (lastActivity) {
+        const inactiveTime = Date.now() - parseInt(lastActivity, 10);
+        if (inactiveTime > ACTIVITY_TIMEOUT) {
+          console.log('[AuthContext] Session expired due to inactivity');
+          signOut();
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const updateActivity = () => {
+      localStorage.setItem('last_activity', Date.now().toString());
+    };
+
+    // Initial check
+    const isExpired = checkSessionExpiry();
+    if (!isExpired) {
+      updateActivity();
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        if (session) updateActivity();
       }
     );
 
@@ -36,9 +63,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session) updateActivity();
     });
 
-    return () => subscription.unsubscribe();
+    // Heartbeat to keep session alive while page is open
+    const interval = setInterval(() => {
+      if (user) {
+        updateActivity();
+      }
+    }, HEARTBEAT_INTERVAL);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
@@ -128,6 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    localStorage.removeItem('last_activity');
     await supabase.auth.signOut();
   };
 
