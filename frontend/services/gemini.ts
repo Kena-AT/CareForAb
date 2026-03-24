@@ -20,7 +20,7 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
     throw new Error("Gemini API key is missing. Please add it to your .env file.");
   }
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
     You are an AI Medical Health Analyst for the CareForAb app. 
@@ -55,7 +55,12 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
     }
     throw new Error("Failed to parse AI response.");
   } catch (error: any) {
-    if (error?.status === 429 || error?.message?.includes("429") || error?.message?.includes("quota")) {
+    console.error("Gemini Analysis Full Error:", error);
+    
+    const statusCode = error?.status || error?.response?.status;
+    const message = error?.message?.toLowerCase() || "";
+
+    if (statusCode === 429 || message.includes("429") || message.includes("quota")) {
       return {
         pattern: "Analysis Temporarily Unavailable",
         explanation: "Our AI service is currently experiencing high demand. We pause analysis to ensure secure, accurate results.",
@@ -63,8 +68,22 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
         type: "info"
       };
     }
-    console.error("Gemini Analysis Error:", error);
-    throw error;
+
+    if (statusCode === 403 || message.includes("apikey") || message.includes("not authorized")) {
+      return {
+        pattern: "AI Configuration Required",
+        explanation: "The AI service could not be authorized. This usually means the API key is invalid or restricted.",
+        recommendation: "Check your .env file and ensure NEXT_PUBLIC_GEMINI_API_KEY is correct.",
+        type: "warning"
+      };
+    }
+
+    return {
+      pattern: "AI Analysis Interrupted",
+      explanation: "We encountered an unexpected error while generating your health insights.",
+      recommendation: "Please verify your internet connection or try again later.",
+      type: "info"
+    };
   }
 };
 
@@ -76,7 +95,7 @@ export const analyzeBloodPressure = async (
 ): Promise<{ headline: string; detail: string; status: 'stable' | 'warning' | 'critical' }> => {
   if (!API_KEY) throw new Error("Gemini API key is missing.");
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const prompt = `
     You are a clinical AI assistant for the CareForAb health app.
@@ -99,14 +118,21 @@ export const analyzeBloodPressure = async (
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
     throw new Error("Failed to parse BP analysis.");
   } catch (error: any) {
-    if (error?.status === 429 || error?.message?.includes("429") || error?.message?.includes("quota")) {
+    console.error("Gemini BP Analysis Full Error:", error);
+    const message = error?.message?.toLowerCase() || "";
+    
+    if (error?.status === 429 || message.includes("429") || message.includes("quota")) {
       return {
         headline: "Analysis Paused",
         detail: "AI health analysis is temporarily paused due to high server demand. Please check back shortly.",
-        status: "stable" // Default safe fallback
+        status: "stable"
       };
     }
-    console.error("Gemini BP Analysis Error:", error);
-    throw error;
+
+    return {
+      headline: "Insight Unavailable",
+      detail: "We couldn't generate a cardiovascular insight at this time.",
+      status: "stable"
+    };
   }
 };
