@@ -47,7 +47,7 @@ export type Database = {
       blood_sugar_readings: {
         Row: {
           id: string
-          meal_context: string
+          meal_type: string
           notes: string | null
           recorded_at: string
           unit: string
@@ -56,7 +56,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          meal_context?: string
+          meal_type?: string
           notes?: string | null
           recorded_at?: string
           unit?: string
@@ -65,7 +65,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          meal_context?: string
+          meal_type?: string
           notes?: string | null
           recorded_at?: string
           unit?: string

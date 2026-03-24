@@ -35,7 +35,7 @@ export const EditReadingModal = ({
   // Blood sugar state
   const [glucoseValue, setGlucoseValue] = useState('');
   const [unit, setUnit] = useState<'mg/dL' | 'mmol/L'>('mg/dL');
-  const [mealContext, setMealContext] = useState<BloodSugarReading['meal_context']>('fasting');
+  const [mealType, setMealType] = useState<BloodSugarReading['meal_type']>('fasting');
   const [notes, setNotes] = useState('');
   
   // Blood pressure state
@@ -49,7 +49,7 @@ export const EditReadingModal = ({
       const bsReading = reading as BloodSugarReading;
       setGlucoseValue(bsReading.value.toString());
       setUnit(bsReading.unit);
-      setMealContext(bsReading.meal_context);
+      setMealType(bsReading.meal_type);
       setNotes(bsReading.notes || '');
     } else {
       const bpReading = reading as BloodPressureReading;
@@ -71,7 +71,7 @@ export const EditReadingModal = ({
         await onUpdate(reading.id, {
           value,
           unit,
-          meal_context: mealContext,
+          meal_type: mealType,
           notes: notes.trim() || null
         });
       } else {
@@ -158,15 +158,16 @@ export const EditReadingModal = ({
               
               <div className="space-y-2">
                 <Label className="text-body">When was this taken?</Label>
-                <Select value={mealContext} onValueChange={(v) => setMealContext(v as BloodSugarReading['meal_context'])}>
+                <Select value={mealType} onValueChange={(v) => setMealType(v as BloodSugarReading['meal_type'])}>
                   <SelectTrigger className="h-14">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fasting">Fasting (morning)</SelectItem>
-                    <SelectItem value="before_meal">Before meal</SelectItem>
-                    <SelectItem value="after_meal">After meal (2 hours)</SelectItem>
-                    <SelectItem value="bedtime">Bedtime</SelectItem>
+                    <SelectItem value="breakfast">Breakfast</SelectItem>
+                    <SelectItem value="lunch">Lunch</SelectItem>
+                    <SelectItem value="dinner">Dinner</SelectItem>
+                    <SelectItem value="snack">Snack</SelectItem>
+                    <SelectItem value="fasting">Fasting</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>

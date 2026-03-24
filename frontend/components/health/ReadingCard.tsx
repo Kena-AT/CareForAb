@@ -86,7 +86,7 @@ export const BloodSugarCard = ({
                 "text-muted-foreground mt-0.5",
                 compact ? "text-xs" : "text-label"
               )}>
-                {reading.meal_context.replace('_', ' ')}
+                {reading.meal_type.replace('_', ' ')}
               </p>
             )}
           </div>

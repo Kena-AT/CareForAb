@@ -33,6 +33,7 @@ export const InsightsScreen = () => {
     calculateAdherenceRate
   } = useHealth();
 
+  const [timeframe, setTimeframe] = useState<7 | 14 | 30>(7);
   const [aiInsight, setAiInsight] = useState<{
     pattern: string;
     explanation: string;
@@ -41,24 +42,37 @@ export const InsightsScreen = () => {
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Filter readings based on timeframe
+  const filteredReadings = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - timeframe);
+    cutoff.setHours(0, 0, 0, 0);
+
+    return {
+      bloodSugar: bloodSugarReadings.filter(r => new Date(r.recorded_at) >= cutoff),
+      bloodPressure: bloodPressureReadings.filter(r => new Date(r.recorded_at) >= cutoff),
+      medLogs: medicationLogs.filter(l => new Date(l.date) >= cutoff)
+    };
+  }, [bloodSugarReadings, bloodPressureReadings, medicationLogs, timeframe]);
+
   const handleGenerateInsights = async () => {
     setIsAnalyzing(true);
     try {
       const data: HealthDataSnapshot = {
-        bloodSugar: bloodSugarReadings.slice(0, 10).map(r => ({
+        bloodSugar: filteredReadings.bloodSugar.slice(0, 20).map(r => ({
           value: r.value,
           unit: r.unit,
           meal_type: r.meal_type,
           recorded_at: r.recorded_at
         })),
-        bloodPressure: bloodPressureReadings.slice(0, 5).map(r => ({
+        bloodPressure: filteredReadings.bloodPressure.slice(0, 10).map(r => ({
           systolic: r.systolic,
           diastolic: r.diastolic,
           pulse: r.pulse || undefined,
           recorded_at: r.recorded_at
         })),
-        medications: medicationLogs.slice(0, 10).map(l => ({
-          name: 'Medication', // You could join with medications data if needed
+        medications: filteredReadings.medLogs.slice(0, 20).map(l => ({
+          name: 'Medication', // Simplified for AI context
           dosage: 'N/A',
           status: l.status,
           date: l.date
@@ -75,38 +89,59 @@ export const InsightsScreen = () => {
     }
   };
 
-  // Generate trends data from real readings (last 7 days)
+  // Generate trends data from real readings (dynamic timeframe)
   const trendsData = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const daysArr = timeframe === 30 ? ['1', '5', '10', '15', '20', '25', '30'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const daysCount = timeframe;
+    
+    const lastNDays = Array.from({ length: daysCount }, (_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
+      d.setDate(d.getDate() - (daysCount - 1 - i));
       return { 
-        day: days[d.getDay()], 
         date: d.toISOString().split('T')[0],
+        label: timeframe <= 7 ? daysArr[d.getDay()] : (i % 5 === 0 || i === daysCount - 1 ? d.getDate().toString() : ''),
         value: 0,
         count: 0 
       };
     });
 
-    bloodSugarReadings.forEach(reading => {
+    filteredReadings.bloodSugar.forEach(reading => {
       const readingDate = new Date(reading.recorded_at).toISOString().split('T')[0];
-      const dayData = last7Days.find(d => d.date === readingDate);
+      const dayData = lastNDays.find(d => d.date === readingDate);
       if (dayData) {
         dayData.value += reading.value;
         dayData.count += 1;
       }
     });
 
-    return last7Days.map(d => ({
-      day: d.day,
+    return lastNDays.map(d => ({
+      day: d.label,
       value: d.count > 0 ? Math.round(d.value / d.count) : 0
     }));
-  }, [bloodSugarReadings]);
+  }, [filteredReadings.bloodSugar, timeframe]);
 
-  const stability = calculateGlucoseStability();
-  const adherence = calculateAdherenceRate();
-  const latestBP = bloodPressureReadings[0];
+  // Local calculations for filtered metrics
+  const localStability = useMemo(() => {
+    const readings = filteredReadings.bloodSugar;
+    if (readings.length < 2) return 0;
+    const values = readings.map(r => r.value);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = stdDev / mean;
+    return Math.max(0, Math.min(100, Math.round(100 - (cv * 100))));
+  }, [filteredReadings.bloodSugar]);
+
+  const localAdherence = useMemo(() => {
+    const logs = filteredReadings.medLogs;
+    if (logs.length === 0) return 0;
+    const taken = logs.filter(l => l.status === 'taken').length;
+    return Math.round((taken / logs.length) * 100);
+  }, [filteredReadings.medLogs]);
+
+  const stability = localStability;
+  const adherence = localAdherence;
+  const latestBP = filteredReadings.bloodPressure[0];
   const bpValue = latestBP ? `${latestBP.systolic}/${latestBP.diastolic}` : '--/--';
 
   const insights = [
@@ -115,8 +150,8 @@ export const InsightsScreen = () => {
       value: `${stability}%`,
       label: stability > 80 ? 'Optimal' : 'Variable',
       description: stability > 80 
-        ? 'Your glucose levels are highly stable within target range.' 
-        : 'Targeted adjustments may help stabilize your glucose spikes.',
+        ? `Levels maintained high stability over the last ${timeframe} days.` 
+        : 'Goal: reduce spikes through consistent logging and monitoring.',
       icon: Droplets,
       color: 'text-[#004c56ff]',
       bg: 'bg-[#f0fdfaff]',
@@ -125,10 +160,10 @@ export const InsightsScreen = () => {
     {
       title: 'Blood Pressure',
       value: bpValue,
-      label: 'Latest Reading',
+      label: 'Selected Period',
       description: latestBP 
         ? `Last recorded on ${new Date(latestBP.recorded_at).toLocaleDateString()}.`
-        : 'No recent readings recorded.',
+        : `No readings in last ${timeframe} days.`,
       icon: Heart,
       color: 'text-red-500',
       bg: 'bg-red-50',
@@ -137,10 +172,10 @@ export const InsightsScreen = () => {
     {
       title: 'Medication Sync',
       value: `${adherence}%`,
-      label: 'Adherence',
+      label: 'Adherence Rate',
       description: adherence > 90 
-        ? 'Excellent adherence! Keep following your therapy protocol.' 
-        : 'Try setting more reminders to improve your adherence rate.',
+        ? `Excellent consistency over the ${timeframe}d window.` 
+        : 'Consistent timing is the key to clinical efficacy.',
       icon: Zap,
       color: 'text-[#006672ff]',
       bg: 'bg-slate-50',
@@ -157,9 +192,24 @@ export const InsightsScreen = () => {
            <p className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Health Insights Protocol</p>
         </div>
         <div className="flex items-center gap-2">
-           <Button variant="ghost" size="sm" className="rounded-xl h-10 px-4 font-bold text-slate-400 hover:text-primary">
-              <Calendar size={16} className="mr-2" /> Last 30 Days
-           </Button>
+           <div className="flex bg-slate-100 p-1 rounded-xl">
+              {[7, 14, 30].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setTimeframe(t as 7|14|30);
+                    setAiInsight(null); // Reset AI when data scope changes
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                    timeframe === t 
+                      ? 'bg-white text-primary shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {t}D
+                </button>
+              ))}
+           </div>
            <Link href="/profile">
              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
                <User size={18} />

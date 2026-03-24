@@ -50,10 +50,7 @@ export const useHealthData = () => {
       
       setMedications(medsRes.data as Medication[] || []);
       setMedicationLogs(logsRes.data as MedicationLog[] || []);
-      setBloodSugarReadings(((sugarRes.data as any[])?.map(r => ({
-        ...r,
-        meal_type: r.meal_type || r.meal_context
-      })) as unknown) as BloodSugarReading[] || []);
+      setBloodSugarReadings(sugarRes.data as BloodSugarReading[] || []);
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
       setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
@@ -145,11 +142,7 @@ export const useHealthData = () => {
         .single();
 
       if (error) throw error;
-      const newReading = ({
-        ...data,
-        meal_type: (data as any).meal_type || (data as any).meal_context
-      } as unknown) as BloodSugarReading;
-      setBloodSugarReadings(prev => [newReading, ...prev]);
+      setBloodSugarReadings(prev => [data as BloodSugarReading, ...prev]);
       toast.success('Blood sugar reading saved!');
     } catch (error: any) {
       console.error('Error adding blood sugar reading:', error);

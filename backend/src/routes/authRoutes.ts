@@ -2,11 +2,12 @@ import express from 'express';
 import { emailService } from '../services/emailService';
 import { supabase } from '../services/reminderService'; // Reusing the client
 
+import { cacheService } from '../services/cacheService';
+
 const router = express.Router();
 
-// Simple in-memory storage for OTP codes (for demo)
-// In production, use Redis or a database table
-const otpCache = new Map<string, { code: string, expires: number, fullName: string }>();
+// OTP expiration set to 10 minutes
+const OTP_TTL = 10 * 60;
 
 router.post('/send-code', async (req, res) => {
   const { email, fullName } = req.body;
@@ -18,12 +19,11 @@ router.post('/send-code', async (req, res) => {
   // Generate 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   
-  // Store in cache (expires in 10 minutes)
-  otpCache.set(email, { 
+  // Store in cache
+  cacheService.set(email, { 
     code, 
-    expires: Date.now() + 10 * 60 * 1000,
     fullName: fullName || 'Valued User'
-  });
+  }, OTP_TTL);
 
   const result = await emailService.sendVerificationEmail(email, code, fullName || 'Valued User');
 
@@ -37,15 +37,10 @@ router.post('/send-code', async (req, res) => {
 router.post('/verify-code', async (req, res) => {
   const { email, code } = req.body;
 
-  const cachedValue = otpCache.get(email);
+  const cachedValue = cacheService.get<{ code: string, fullName: string }>(email);
 
   if (!cachedValue) {
-    return res.status(400).json({ error: 'No code found for this email. Please request a new one.' });
-  }
-
-  if (Date.now() > cachedValue.expires) {
-    otpCache.delete(email);
-    return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+    return res.status(400).json({ error: 'No code found for this email or code expired. Please request a new one.' });
   }
 
   if (cachedValue.code !== code) {
@@ -53,7 +48,7 @@ router.post('/verify-code', async (req, res) => {
   }
 
   // Code is valid! 
-  otpCache.delete(email);
+  cacheService.delete(email);
 
   // If we have SERVICE_ROLE_KEY, we can confirm the user in Supabase
   try {

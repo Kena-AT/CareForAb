@@ -22,7 +22,7 @@ export const exportToCSV = (data: ExportData): void => {
   data.bloodSugarReadings.forEach(reading => {
     const date = new Date(reading.recorded_at);
     const status = getGlucoseStatus(reading.value, reading.unit);
-    lines.push(`${date.toLocaleDateString()},${date.toLocaleTimeString()},${reading.value},${reading.meal_context},${status}`);
+    lines.push(`${date.toLocaleDateString()},${date.toLocaleTimeString()},${reading.value},${reading.meal_type},${status}`);
   });
   lines.push('');
   
@@ -110,7 +110,7 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
         return [
           date.toLocaleDateString(),
           reading.value.toString(),
-          reading.meal_context.replace('_', ' '),
+          reading.meal_type.replace('_', ' '),
           status.charAt(0).toUpperCase() + status.slice(1)
         ];
       }),
