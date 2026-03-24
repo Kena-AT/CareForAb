@@ -47,4 +47,19 @@ export const emailTemplates = {
       </div>
     `,
   }),
+  lowInventoryAlert: (fullName: string, medicationName: string, count: number) => ({
+    subject: `Low Supply Alert: ${medicationName}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #d94a38;">Medication Refill Alert</h2>
+        <p>Hi ${fullName}, your supply of <strong>${medicationName}</strong> is running low.</p>
+        <div style="background: #fff8f7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d94a38;">
+          <p><strong>Current Balance:</strong> ${count} units remaining</p>
+        </div>
+        <p>We recommend ordering a refill soon to avoid missing any doses.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="text-align: center; color: #999; font-size: 12px;">&copy; 2026 CareforAb. Monitoring your health essentials.</p>
+      </div>
+    `,
+  }),
 };

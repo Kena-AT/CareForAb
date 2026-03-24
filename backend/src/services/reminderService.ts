@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import cron from 'node-cron';
 import { emailService } from './emailService';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const supabase = createClient(supabaseUrl!, supabaseKey!);
 
@@ -23,37 +23,42 @@ export class ReminderService {
       
       const { data: medications, error } = await supabase
         .from('medications')
-        .select(`
-          *,
-          profiles:user_id (full_name, id, notification_preferences)
-        `)
+        .select('*')
         .eq('is_active', true);
 
       if (error) throw error;
       if (!medications) return;
 
       for (const med of medications) {
-        // Only send if the user has med reminders enabled in settings
-        const prefs = (med.profiles as any)?.notification_preferences || { email: true, medication: true };
-        
-        if (med.times && med.times.includes(currentHourMinute) && (prefs.email && prefs.medication)) {
-          const userEmail = await this.getUserEmail(med.user_id);
-          if (userEmail) {
-            await emailService.sendMedicationReminder(
-              userEmail,
-              (med.profiles as any)?.full_name || 'Valued User',
-              med.name,
-              med.dosage,
-              currentHourMinute
-            );
+        if (med.times && med.times.includes(currentHourMinute)) {
+          // Fetch user profile separately to avoid PGRST200 relationship error
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, id, notification_preferences')
+            .eq('id', med.user_id)
+            .single();
 
-            // Also add in-app notification
-            await supabase.from('notifications').insert({
-              user_id: med.user_id,
-              title: 'Medication Due',
-              message: `Time to take ${med.name} (${med.dosage})`,
-              type: 'reminder'
-            });
+          const prefs = (profile as any)?.notification_preferences || { email: true, medication: true };
+          
+          if (prefs.email && prefs.medication) {
+            const userEmail = await this.getUserEmail(med.user_id);
+            if (userEmail) {
+              await emailService.sendMedicationReminder(
+                userEmail,
+                (profile as any)?.full_name || 'Valued User',
+                med.name,
+                med.dosage,
+                currentHourMinute
+              );
+
+              // Also add in-app notification
+              await supabase.from('notifications').insert({
+                user_id: med.user_id,
+                title: 'Medication Due',
+                message: `Time to take ${med.name} (${med.dosage})`,
+                type: 'reminder'
+              });
+            }
           }
         }
       }
@@ -61,6 +66,11 @@ export class ReminderService {
       // Weekly Health Summary Check (Every Sunday at 08:00)
       if (now.getDay() === 0 && now.getHours() === 8 && now.getMinutes() === 0) {
         await this.sendWeeklyHealthSummaries();
+      }
+
+      // Low Inventory Check (Daily at 09:00)
+      if (now.getHours() === 9 && now.getMinutes() === 0) {
+        await this.checkLowInventory();
       }
 
     } catch (error) {
@@ -99,6 +109,53 @@ export class ReminderService {
       }
     } catch (error) {
       console.error('[ReminderService] Error in sendWeeklyHealthSummaries:', error);
+    }
+  }
+
+  private async checkLowInventory() {
+    console.log('[ReminderService] Running Low Inventory check...');
+    try {
+      const { data: medications, error } = await supabase
+        .from('medications')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      if (!medications) return;
+
+      for (const med of medications) {
+        if (
+          med.inventory_count !== null && 
+          med.refill_threshold !== null && 
+          med.inventory_count <= med.refill_threshold
+        ) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, id')
+            .eq('id', med.user_id)
+            .single();
+
+          const userEmail = await this.getUserEmail(med.user_id);
+          if (userEmail) {
+            await emailService.sendLowInventoryAlert(
+              userEmail,
+              (profile as any)?.full_name || 'Valued User',
+              med.name,
+              med.inventory_count
+            );
+
+            // Also add in-app notification
+            await supabase.from('notifications').insert({
+              user_id: med.user_id,
+              title: 'Refill Needed',
+              message: `You only have ${med.inventory_count} units of ${med.name} left.`,
+              type: 'warning'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[ReminderService] Error in checkLowInventory:', error);
     }
   }
 

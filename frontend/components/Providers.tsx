@@ -1,9 +1,9 @@
 "use client";
 
-import { AuthProvider } from './contexts/AuthContext';
-import { HealthProvider } from './contexts/HealthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { HealthProvider } from '@/contexts/HealthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { Toaster } from 'sonner';
 
 export function Providers({ children }: { children: React.ReactNode }) {

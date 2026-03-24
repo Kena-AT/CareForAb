@@ -8,6 +8,9 @@ export interface Medication {
   notes?: string | null;
   is_active: boolean;
   created_at: string;
+  inventory_count?: number | null;
+  refill_threshold?: number | null;
+  doctor?: string | null;
 }
 
 export interface MedicationLog {

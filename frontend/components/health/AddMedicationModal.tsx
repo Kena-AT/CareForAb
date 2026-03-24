@@ -21,6 +21,9 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
   const [frequency, setFrequency] = useState('daily');
   const [times, setTimes] = useState<string[]>(['08:00']);
   const [notes, setNotes] = useState('');
+  const [doctor, setDoctor] = useState('');
+  const [inventoryCount, setInventoryCount] = useState('');
+  const [refillThreshold, setRefillThreshold] = useState('10');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addTime = () => {
@@ -37,6 +40,14 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
     setTimes(newTimes);
   };
 
+  const handleFrequencyChange = (val: string) => {
+    setFrequency(val);
+    if (val === 'twice_daily') setTimes(['08:00', '20:00']);
+    else if (val === 'daily') setTimes(['08:00']);
+    else if (val === 'weekly') setTimes(['08:00']);
+    else setTimes(['08:00']);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !dosage.trim() || times.length === 0) return;
@@ -48,9 +59,16 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
         dosage: dosage.trim(),
         frequency,
         times,
-        notes: notes.trim() || null
+        notes: notes.trim() || null,
+        doctor: doctor.trim() || null,
+        inventory_count: inventoryCount ? parseInt(inventoryCount) : null,
+        refill_threshold: refillThreshold ? parseInt(refillThreshold) : 10,
       });
       onClose();
+    } catch (err: any) {
+      console.error('Submission error in AddMedicationModal:', err);
+      // The parent hook (useHealthData) should already show a toast, 
+      // but we add this as a secondary safety to ensure the user knows it failed.
     } finally {
       setIsSubmitting(false);
     }
@@ -113,7 +131,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
 
            <div className="space-y-3">
               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Routine Frequency</Label>
-              <Select value={frequency} onValueChange={setFrequency}>
+              <Select value={frequency} onValueChange={handleFrequencyChange}>
                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
                     <SelectValue />
                  </SelectTrigger>
@@ -165,6 +183,39 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                  ))}
               </div>
            </div>
+
+            <div className="space-y-3">
+               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Prescribing Doctor (Optional)</Label>
+               <Input
+                 placeholder="e.g. Dr. Thompson"
+                 value={doctor}
+                 onChange={(e) => setDoctor(e.target.value)}
+                 className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Current Stock (pills)</Label>
+                 <Input
+                   type="number"
+                   placeholder="e.g. 60"
+                   value={inventoryCount}
+                   onChange={(e) => setInventoryCount(e.target.value)}
+                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                 />
+               </div>
+               <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Refill Alert At</Label>
+                 <Input
+                   type="number"
+                   placeholder="e.g. 10"
+                   value={refillThreshold}
+                   onChange={(e) => setRefillThreshold(e.target.value)}
+                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                 />
+               </div>
+            </div>
 
            <div className="space-y-3">
               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Clinical Notes (Optional)</Label>

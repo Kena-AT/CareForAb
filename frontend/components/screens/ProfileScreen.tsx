@@ -19,17 +19,21 @@ import { motion } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogFooter
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Profile {
   id: string;
   full_name: string | null;
   date_of_birth: string | null;
   created_at: string;
+  avatar_url?: string | null;
+  blood_type?: string | null;
 }
 
 interface ProfileScreenProps {
@@ -107,10 +111,108 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
     }
   };
 
+  const [timeframe, setTimeframe] = useState('30days');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isEditingBloodType, setIsEditingBloodType] = useState(false);
+  const [newBloodType, setNewBloodType] = useState('');
+
+  // Set initial blood type when profile loads
+  useEffect(() => {
+    if (profile?.blood_type) {
+      setNewBloodType(profile.blood_type);
+    }
+  }, [profile]);
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0 || !user) {
+        return;
+      }
+      
+      const file = event.target.files[0];
+      if (!window.confirm(`Are you sure you want to set this image as your profile picture?`)) {
+        event.target.value = '';
+        return;
+      }
+      
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : prev);
+      toast.success('Profile image updated successfully!');
+    } catch (error) {
+      toast.error('Error uploading image');
+      console.error(error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveBloodType = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ blood_type: newBloodType })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, blood_type: newBloodType } : prev);
+      setIsEditingBloodType(false);
+      toast.success('Blood type updated');
+    } catch (error) {
+      toast.error('Failed to update blood type');
+    }
+  };
+
+  // Timeframe calculation
+  const getFilteredData = () => {
+    const now = new Date();
+    let startDate = new Date();
+    switch (timeframe) {
+      case '1day': startDate.setDate(now.getDate() - 1); break;
+      case '7days': startDate.setDate(now.getDate() - 7); break;
+      case '30days': startDate.setDate(now.getDate() - 30); break;
+      case '90days': startDate.setDate(now.getDate() - 90); break;
+      case '180days': startDate.setDate(now.getDate() - 180); break;
+      case '1year': startDate.setFullYear(now.getFullYear() - 1); break;
+      default: startDate.setDate(now.getDate() - 30);
+    }
+
+    const filterFunc = (item: { recorded_at: string }) => new Date(item.recorded_at) >= startDate;
+    
+    return {
+      filteredBg: bloodSugarReadings.filter(filterFunc),
+      filteredBp: bloodPressureReadings.filter(filterFunc),
+    };
+  };
+
+  const { filteredBg, filteredBp } = getFilteredData();
+
   const daysTracked = new Set([
-    ...bloodSugarReadings.map(r => new Date(r.recorded_at).toDateString()),
-    ...bloodPressureReadings.map(r => new Date(r.recorded_at).toDateString()),
+    ...filteredBg.map(r => new Date(r.recorded_at).toDateString()),
+    ...filteredBp.map(r => new Date(r.recorded_at).toDateString()),
   ]).size;
+
+  const totalReadings = filteredBg.length + filteredBp.length;
 
   const takenMeds = medicationLogs.filter(l => l.status === 'taken').length;
   const totalMeds = medicationLogs.length;
@@ -144,114 +246,193 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
         onSettingsClick={onSettingsClick}
       />
 
-      <main className="px-10 py-10 max-w-5xl mx-auto space-y-10">
-        <section className="flex flex-col md:flex-row gap-10">
-           {/* Left Column: User Card */}
-           <div className="flex-1 space-y-10">
-              <Card className="border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] overflow-hidden">
-                 <div className="h-24 bg-gradient-to-r from-[#004c56ff] to-[#006672ff]" />
-                 <CardContent className="p-8 -mt-12 text-center md:text-left">
-                    <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
-                       <Avatar className="h-24 w-24 bg-white border-4 border-white shadow-xl">
-                          <AvatarFallback className="text-2xl font-black bg-[#f0fdfaff] text-primary">
-                             {getInitials(profile?.full_name)}
-                          </AvatarFallback>
-                       </Avatar>
-                       <div className="pb-2">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                             {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
-                          </h2>
-                          <p className="text-sm font-bold text-slate-400">{user?.email}</p>
-                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-50">
-                       <div className="text-center">
-                          <p className="text-xl font-black text-slate-900">{daysTracked}</p>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Days</p>
-                       </div>
-                       <div className="text-center">
-                          <p className="text-xl font-black text-primary">{adherenceRate}%</p>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Rate</p>
-                       </div>
-                       <div className="text-center">
-                          <p className="text-xl font-black text-slate-900">{medications.length}</p>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Meds</p>
-                       </div>
-                    </div>
-                 </CardContent>
-              </Card>
+      <main className="px-10 py-10 max-w-6xl mx-auto space-y-10">
+        
+        {/* Top Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* User Profile Card */}
+          <div className="md:col-span-2">
+            <Card className="border-none shadow-sm bg-white rounded-3xl h-full flex flex-col justify-center overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-bl-full -z-10 opacity-50" />
+              <CardContent className="p-8 flex flex-col sm:flex-row items-center gap-8">
+                
+                <div className="relative cursor-pointer group">
+                  <Avatar className="h-32 w-32 border-4 border-white shadow-xl bg-slate-50/50">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+                    ) : (
+                      <AvatarFallback className="text-4xl font-black text-slate-300">
+                        {getInitials(profile?.full_name)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <label className="absolute inset-0 bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-xs font-bold">
+                    {isUploading ? 'Uploading...' : 'Change'}
+                    <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={handleAvatarUpload} />
+                  </label>
+                  <div className="absolute bottom-2 right-2 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
+                </div>
 
-              {/* Data Export Card */}
-              <Card className="border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-8 space-y-6">
-                 <div>
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Vault & Records</h3>
-                    <p className="text-xs text-slate-400 font-medium">Download your complete diagnostic history.</p>
-                 </div>
-                 
-                 <div className="flex flex-col sm:flex-row gap-3">
-                    <Button onClick={handleExportPDF} className="flex-1 bg-[#004c56ff] hover:bg-[#003a42] text-white rounded-xl h-12 font-black text-xs gap-2">
-                       <FileText size={16} /> PDF Report
-                    </Button>
-                    <Button onClick={handleExportCSV} className="flex-1 bg-[#dfe3e3ff] hover:bg-[#d0d6d6] text-slate-700 rounded-xl h-12 font-black text-xs gap-2">
-                       <Download size={16} /> CSV Dataset
-                    </Button>
-                 </div>
-              </Card>
-           </div>
-
-           {/* Right Column: Menu & Actions */}
-           <div className="w-full md:w-80 space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                 <div className="h-6 w-1 bg-primary rounded-full" />
-                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Management</h3>
-              </div>
-              
-              <div className="space-y-3">
-                 {menuItems.map((item, idx) => (
-                    <motion.button
-                       key={idx}
-                       whileHover={{ x: 4 }}
-                       className="w-full text-left p-4 bg-white border border-slate-50 rounded-2xl flex items-center gap-4 group transition-all hover:shadow-lg hover:shadow-slate-200/50"
+                <div className="space-y-4 text-center sm:text-left">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                    {profile?.full_name || user?.user_metadata?.full_name || 'Anonymous User'}
+                  </h2>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                    <div 
+                      onClick={() => setIsEditingBloodType(true)}
+                      className="px-4 py-2 bg-slate-50 rounded-full text-xs font-bold text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-2"
                     >
-                       <div className="p-3 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-[#f0fdfaff] group-hover:text-primary transition-colors">
-                          <item.icon size={20} />
-                       </div>
-                       <div className="flex-1">
-                          <p className="text-sm font-black text-slate-900">{item.label}</p>
-                          <p className="text-[10px] text-slate-400 group-hover:text-slate-500 font-medium">{item.description}</p>
-                       </div>
-                       <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-all" />
-                    </motion.button>
-                 ))}
-                 
-                 <motion.button
-                    whileHover={{ x: 4 }}
-                    className="w-full text-left p-4 bg-white border border-slate-50 rounded-2xl flex items-center justify-between group transition-all hover:bg-slate-50"
-                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                 >
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 rounded-xl bg-slate-50 text-slate-400">
-                          {resolvedTheme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-slate-900">Visual Mode</p>
-                          <p className="text-[10px] text-slate-400 font-medium">{resolvedTheme === 'dark' ? 'Dark Protocol' : 'Standard View'}</p>
-                       </div>
+                      Blood Type: {profile?.blood_type || 'Unknown'}
+                      <ChevronRight size={14} className="text-slate-400" />
                     </div>
-                 </motion.button>
-              </div>
+                  </div>
+                </div>
 
-              <Button 
-                variant="ghost" 
-                onClick={handleSignOut}
-                className="w-full mt-10 rounded-[20px] h-12 text-red-500 hover:bg-red-50 hover:text-red-600 font-black text-xs gap-3"
-              >
-                <LogOut size={18} /> End Session
-              </Button>
-           </div>
-        </section>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Clinical Exports */}
+          <Card className="border-none bg-[#0a5c66] text-white rounded-3xl shadow-xl shadow-teal-900/10 overflow-hidden">
+            <CardContent className="p-8 flex flex-col h-full justify-between gap-6">
+              <div>
+                <h3 className="text-lg font-bold mb-2">Clinical Exports</h3>
+                <p className="text-teal-100/80 text-sm leading-relaxed">
+                  Share your recent health trends with your physician instantly.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleExportPDF} 
+                  className="w-full bg-white text-teal-900 hover:bg-slate-50 rounded-xl h-12 font-bold flex justify-between px-6"
+                >
+                  Download PDF Report
+                  <FileText size={18} className="text-teal-700" />
+                </Button>
+                <Button 
+                  onClick={handleExportCSV} 
+                  className="w-full bg-teal-800/50 hover:bg-teal-800 text-white border border-teal-700/50 rounded-xl h-12 font-bold flex justify-between px-6"
+                >
+                  Download CSV
+                  <Download size={18} className="text-teal-100" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Health Summary Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900">Health Summary</h3>
+            <select 
+              value={timeframe} 
+              onChange={(e) => setTimeframe(e.target.value)}
+              className="bg-slate-100 border-none rounded-full px-4 py-2 text-xs font-bold text-slate-600 cursor-pointer appearance-none text-center outline-none"
+            >
+              <option value="1day">Today</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="90days">Last 3 Months</option>
+              <option value="180days">Last 6 Months</option>
+              <option value="1year">Last Year</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="border-none shadow-sm rounded-3xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <Calendar size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-emerald-600">+12% vs last period</span>
+                </div>
+                <p className="text-sm font-bold text-slate-500 mb-1">Days Tracked</p>
+                <p className="text-4xl font-black text-slate-900">{daysTracked}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm rounded-3xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Activity size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-blue-600">{adherenceRate >= 90 ? 'Excellent' : 'Needs Focus'}</span>
+                </div>
+                <p className="text-sm font-bold text-slate-500 mb-1">Adherence Rate</p>
+                <p className="text-4xl font-black text-slate-900">{adherenceRate}<span className="text-2xl">%</span></p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm rounded-3xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                    <FileText size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-red-600">Active</span>
+                </div>
+                <p className="text-sm font-bold text-slate-500 mb-1">Total Readings</p>
+                <p className="text-4xl font-black text-slate-900">{totalReadings}</p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="bg-slate-50 border border-slate-100 text-slate-500 p-4 rounded-xl text-xs flex items-start gap-4">
+            <p>
+              Clinical Note: Data export is available every 24 hours. For urgent clinical requests or to update your account security settings, please visit the Settings page or contact your care provider through the emergency button.
+            </p>
+          </div>
+
+          <div className="flex justify-center pt-8">
+            <Button 
+              variant="ghost" 
+              onClick={handleSignOut}
+              className="rounded-xl h-12 text-red-500 hover:bg-red-50 hover:text-red-600 font-bold px-8 flex items-center gap-3"
+            >
+              <LogOut size={18} /> Sign Out Securely
+            </Button>
+          </div>
+        </div>
       </main>
+
+      {/* Blood Type Edit Modal */}
+      <Dialog open={isEditingBloodType} onOpenChange={setIsEditingBloodType}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Update Clinical Protocol</DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs mt-2">
+              Update your blood type information for clinical context and emergency readiness.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Blood Type (ABO & Rh)</Label>
+              <select 
+                value={newBloodType}
+                onChange={(e) => setNewBloodType(e.target.value)}
+                className="flex h-12 w-full rounded-xl border-none bg-slate-50 px-4 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Unknown / Select Type</option>
+                <option value="A+">A Positive (A+)</option>
+                <option value="A-">A Negative (A-)</option>
+                <option value="B+">B Positive (B+)</option>
+                <option value="B-">B Negative (B-)</option>
+                <option value="O+">O Positive (O+)</option>
+                <option value="O-">O Negative (O-)</option>
+                <option value="AB+">AB Positive (AB+)</option>
+                <option value="AB-">AB Negative (AB-)</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditingBloodType(false)} className="rounded-xl">Cancel</Button>
+            <Button onClick={handleSaveBloodType} className="bg-teal-900 hover:bg-teal-950 text-white rounded-xl px-8 font-bold">Save Record</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

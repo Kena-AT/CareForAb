@@ -20,7 +20,7 @@ export const useHealthData = () => {
   const [bloodPressureReadings, setBloodPressureReadings] = useState<BloodPressureReading[]>([]);
   const [oxygenReadings, setOxygenReadings] = useState<OxygenReading[]>([]);
   const [activityReadings, setActivityReadings] = useState<ActivityReading[]>([]);
-  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string | null; blood_type: string | null; avatar_url: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -40,7 +40,7 @@ export const useHealthData = () => {
         supabase.from('blood_pressure_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
         supabase.from('oxygen_readings' as any).select('*').order('recorded_at', { ascending: false }).limit(20),
         supabase.from('activity_readings' as any).select('*').order('date', { ascending: false }).limit(7),
-        supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+        supabase.from('profiles').select('full_name, blood_type, avatar_url').eq('id', user.id).maybeSingle()
       ]);
 
       if (medsRes.error) throw medsRes.error;
@@ -54,7 +54,7 @@ export const useHealthData = () => {
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
       setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
-      setProfile(profileRes.data as { full_name: string | null });
+      setProfile(profileRes.data as { full_name: string | null; blood_type: string | null; avatar_url: string | null });
     } catch (error: any) {
       console.error('Error fetching health data:', error);
       toast.error('Failed to load health data');
@@ -80,12 +80,30 @@ export const useHealthData = () => {
 
   const markMedicationTaken = async (logId: string) => {
     try {
-      const { error } = await supabase
+      const { data: logData, error } = await supabase
         .from('medication_logs')
         .update({ status: 'taken', taken_at: new Date().toISOString() })
-        .eq('id', logId);
+        .eq('id', logId)
+        .select('medication_id')
+        .single();
 
       if (error) throw error;
+
+      // Decrement inventory if tracked
+      if (logData?.medication_id) {
+        const med = medications.find(m => m.id === logData.medication_id);
+        if (med && med.inventory_count !== null && med.inventory_count !== undefined) {
+          const newCount = Math.max(0, med.inventory_count - 1);
+          await supabase
+            .from('medications')
+            .update({ inventory_count: newCount })
+            .eq('id', med.id);
+          
+          setMedications(prev => prev.map(m => 
+            m.id === med.id ? { ...m, inventory_count: newCount } : m
+          ));
+        }
+      }
 
       setMedicationLogs(logs =>
         logs.map(log =>
@@ -187,7 +205,11 @@ export const useHealthData = () => {
           dosage: medication.dosage,
           frequency: medication.frequency,
           times: medication.times,
-          notes: medication.notes
+          notes: medication.notes,
+          is_active: true,
+          doctor: (medication as any).doctor ?? null,
+          inventory_count: (medication as any).inventory_count ?? null,
+          refill_threshold: (medication as any).refill_threshold ?? 10,
         })
         .select()
         .single();
@@ -326,6 +348,8 @@ export const useHealthData = () => {
     calculateHealthScore,
     calculateAdherenceStreak,
     userName: profile?.full_name,
+    bloodType: profile?.blood_type,
+    avatarUrl: profile?.avatar_url,
     refetch: fetchData
   };
 };

@@ -52,7 +52,7 @@ export const VitalsScreen = () => {
     analyzeBloodPressure(bloodPressureReadings.map(r => ({
       systolic: r.systolic,
       diastolic: r.diastolic,
-      pulse: r.pulse,
+      pulse: r.pulse ?? undefined,
       recorded_at: r.recorded_at
     }))).then(res => {
       setBpAnalysis(res);

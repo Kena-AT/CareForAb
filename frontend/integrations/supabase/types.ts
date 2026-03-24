@@ -118,36 +118,45 @@ export type Database = {
       medications: {
         Row: {
           created_at: string
+          doctor: string | null
           dosage: string
           frequency: string
           id: string
+          inventory_count: number | null
           is_active: boolean
           name: string
           notes: string | null
+          refill_threshold: number | null
           times: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          doctor?: string | null
           dosage: string
           frequency: string
           id?: string
+          inventory_count?: number | null
           is_active?: boolean
           name: string
           notes?: string | null
+          refill_threshold?: number | null
           times?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          doctor?: string | null
           dosage?: string
           frequency?: string
           id?: string
+          inventory_count?: number | null
           is_active?: boolean
           name?: string
           notes?: string | null
+          refill_threshold?: number | null
           times?: string[]
           updated_at?: string
           user_id?: string
@@ -156,6 +165,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          blood_type: string | null
           created_at: string
           date_of_birth: string | null
           full_name: string | null
@@ -163,6 +174,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
+          blood_type?: string | null
           created_at?: string
           date_of_birth?: string | null
           full_name?: string | null
@@ -170,6 +183,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
+          blood_type?: string | null
           created_at?: string
           date_of_birth?: string | null
           full_name?: string | null

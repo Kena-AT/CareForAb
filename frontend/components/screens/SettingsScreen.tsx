@@ -80,7 +80,6 @@ export const SettingsScreen = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: displayName,
           language: language,
           notification_preferences: notifications,
           updated_at: new Date().toISOString()
@@ -147,17 +146,8 @@ export const SettingsScreen = () => {
           title="Account Preferences" 
           description="Manage how your profile appears and how you're addressed as a patient."
         >
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Display Name</Label>
-              <Input 
-                value={displayName} 
-                onChange={(e) => { setDisplayName(e.target.value); setIsDirty(true); }}
-                placeholder="Patient Name"
-                className="bg-slate-50 border-none h-12 rounded-xl focus-visible:ring-teal-500"
-              />
-            </div>
-            <div className="space-y-2">
+          <div className="space-y-6">
+            <div className="space-y-3">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Language</Label>
               <div className="relative group">
                 <Input 
@@ -211,7 +201,7 @@ export const SettingsScreen = () => {
                 </div>
                 <div>
                   <p className="font-bold text-slate-900 text-sm">Email Reminders</p>
-                  <p className="text-xs text-slate-400">Weekly health analysis & summary results</p>
+                  <p className="text-xs text-slate-400">Daily medication reminders directly to your inbox</p>
                 </div>
               </div>
               <Switch checked={notifications.email} onCheckedChange={() => handleToggleNotification('email')} />
@@ -368,7 +358,7 @@ export const SettingsScreen = () => {
               className="rounded-2xl h-14 px-10 font-black uppercase text-[11px] tracking-widest bg-teal-900 hover:bg-teal-950 text-white shadow-xl shadow-teal-900/20 flex gap-2 items-center"
             >
               <Save size={16} />
-              {isSaving ? 'Syncing...' : 'Commit System Configuration'}
+              {isSaving ? 'Saving...' : 'Save Preferences'}
             </Button>
           </div>
         </motion.div>

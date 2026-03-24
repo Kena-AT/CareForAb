@@ -78,6 +78,24 @@ export class EmailService {
       return { success: false, error };
     }
   }
+
+  async sendLowInventoryAlert(to: string, fullName: string, medicationName: string, count: number) {
+    const template = emailTemplates.lowInventoryAlert(fullName, medicationName, count);
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.subject = template.subject;
+    sendSmtpEmail.htmlContent = template.html;
+    sendSmtpEmail.sender = { "name": "CareforAb Inventory", "email": this.senderEmail };
+    sendSmtpEmail.to = [{ "email": to, "name": fullName }];
+
+    try {
+      await this.withRetry(() => this.apiInstance.sendTransacEmail(sendSmtpEmail));
+      return { success: true };
+    } catch (error) {
+      console.error('[EmailService] Failed to send low inventory alert after retries:', error);
+      return { success: false, error };
+    }
+  }
 }
 
 export const emailService = new EmailService();
