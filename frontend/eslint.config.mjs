@@ -1,22 +1,42 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import pluginReact from "eslint-plugin-react";
+import pluginReactHooks from "eslint-plugin-react-hooks";
+import nextPlugin from "@next/eslint-plugin-next";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
+    files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    plugins: {
+      react: pluginReact,
+      "react-hooks": pluginReactHooks,
+      "@next/next": nextPlugin,
+    },
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
     rules: {
+      ...pluginReact.configs.recommended.rules,
+      ...pluginReactHooks.configs.recommended.rules,
+      ...nextPlugin.configs.recommended.rules,
       "no-unused-vars": "warn",
-      "no-console": "off"
-    }
-  }
+      "no-console": "off",
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
+  {
+    ignores: [".next/", "node_modules/", "dist/"],
+  },
 ];
-
-export default eslintConfig;
