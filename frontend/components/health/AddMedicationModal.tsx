@@ -22,8 +22,6 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
   const [times, setTimes] = useState<string[]>(['08:00']);
   const [notes, setNotes] = useState('');
   const [doctor, setDoctor] = useState('');
-  const [inventoryCount, setInventoryCount] = useState('');
-  const [refillThreshold, setRefillThreshold] = useState('10');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addTime = () => {
@@ -61,8 +59,8 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
         times,
         notes: notes.trim() || null,
         doctor: doctor.trim() || null,
-        inventory_count: inventoryCount ? parseInt(inventoryCount) : null,
-        refill_threshold: refillThreshold ? parseInt(refillThreshold) : 10,
+        inventory_count: null,
+        refill_threshold: null,
       });
       onClose();
     } catch (err: any) {
@@ -192,29 +190,6 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                  onChange={(e) => setDoctor(e.target.value)}
                  className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-3">
-                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Current Stock (pills)</Label>
-                 <Input
-                   type="number"
-                   placeholder="e.g. 60"
-                   value={inventoryCount}
-                   onChange={(e) => setInventoryCount(e.target.value)}
-                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
-                 />
-               </div>
-               <div className="space-y-3">
-                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Refill Alert At</Label>
-                 <Input
-                   type="number"
-                   placeholder="e.g. 10"
-                   value={refillThreshold}
-                   onChange={(e) => setRefillThreshold(e.target.value)}
-                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
-                 />
-               </div>
             </div>
 
            <div className="space-y-3">

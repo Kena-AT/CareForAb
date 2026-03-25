@@ -6,6 +6,7 @@ import { Plus, Pill, MoreVertical, Clock, CheckCircle2, AlertCircle, Sun, Moon, 
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { AddMedicationModal } from '@/components/health/AddMedicationModal';
+import { InventoryModal } from '@/components/health/InventoryModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Medication, MedicationLog } from '@/types/health';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,6 +68,7 @@ export const MedicationsScreen = ({
 }: MedicationsScreenProps) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState<string | null>(null);
+  const [inventoryModalMed, setInventoryModalMed] = useState<Medication | null>(null);
   const { addNotification } = useNotifications();
 
   const today = new Date().toISOString().split('T')[0];
@@ -317,6 +319,12 @@ export const MedicationsScreen = ({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="rounded-2xl border-slate-100 shadow-xl" align="end">
                             <DropdownMenuItem
+                              onClick={() => setInventoryModalMed(med)}
+                              className="font-bold gap-2 rounded-xl"
+                            >
+                              <PackageOpen size={14} /> Manage Inventory
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => onDeleteMedication?.(med.id)}
                               className="text-red-500 font-bold gap-2 rounded-xl"
                             >
@@ -405,6 +413,17 @@ export const MedicationsScreen = ({
           <AddMedicationModal
             onClose={() => setShowAddModal(false)}
             onAdd={handleAddMedication}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Inventory Management Modal */}
+      <AnimatePresence>
+        {inventoryModalMed && onUpdateMedication && (
+          <InventoryModal
+            medication={inventoryModalMed}
+            onClose={() => setInventoryModalMed(null)}
+            onUpdate={onUpdateMedication}
           />
         )}
       </AnimatePresence>

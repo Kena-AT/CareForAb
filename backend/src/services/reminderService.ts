@@ -16,10 +16,11 @@ export class ReminderService {
 
     try {
       const now = new Date();
+      // Use UTC to match server time, or local time - need to be consistent
       const currentHourMinute = now.getHours().toString().padStart(2, '0') + ':' + 
                                now.getMinutes().toString().padStart(2, '0');
       
-      console.log(`[ReminderService] Checking for medications due at ${currentHourMinute}...`);
+      console.log(`[ReminderService] Checking for medications due at ${currentHourMinute} (server time)...`);
       
       const { data: medications, error } = await supabase
         .from('medications')
@@ -27,29 +28,57 @@ export class ReminderService {
         .eq('is_active', true);
 
       if (error) throw error;
-      if (!medications) return;
+      if (!medications || medications.length === 0) {
+        console.log('[ReminderService] No active medications found');
+        return;
+      }
+
+      console.log(`[ReminderService] Found ${medications.length} active medications`);
 
       for (const med of medications) {
-        if (med.times && med.times.includes(currentHourMinute)) {
+        if (!med.times || !Array.isArray(med.times)) {
+          console.log(`[ReminderService] Medication ${med.name} has no times configured`);
+          continue;
+        }
+        
+        // Normalize time format for comparison
+        const normalizedCurrentTime = currentHourMinute.trim();
+        const normalizedMedTimes = med.times.map((t: string) => t.trim());
+        
+        if (normalizedMedTimes.includes(normalizedCurrentTime)) {
+          console.log(`[ReminderService] Medication ${med.name} is due at ${normalizedCurrentTime}`);
+          
           // Fetch user profile separately to avoid PGRST200 relationship error
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, id, notification_preferences')
+            .select('full_name, id, notification_preferences, language')
             .eq('id', med.user_id)
             .single();
+
+          if (profileError) {
+            console.error(`[ReminderService] Error fetching profile for user ${med.user_id}:`, profileError);
+            continue;
+          }
 
           const prefs = (profile as any)?.notification_preferences || { email: true, medication: true };
           
           if (prefs.email && prefs.medication) {
             const userEmail = await this.getUserEmail(med.user_id);
             if (userEmail) {
-              await emailService.sendMedicationReminder(
+              console.log(`[ReminderService] Sending reminder to ${userEmail} for ${med.name}`);
+              const result = await emailService.sendMedicationReminder(
                 userEmail,
                 (profile as any)?.full_name || 'Valued User',
                 med.name,
                 med.dosage,
-                currentHourMinute
+                normalizedCurrentTime
               );
+              
+              if (result.success) {
+                console.log(`[ReminderService] Email sent successfully to ${userEmail}`);
+              } else {
+                console.error(`[ReminderService] Failed to send email to ${userEmail}:`, result.error);
+              }
 
               // Also add in-app notification
               await supabase.from('notifications').insert({
@@ -58,7 +87,11 @@ export class ReminderService {
                 message: `Time to take ${med.name} (${med.dosage})`,
                 type: 'reminder'
               });
+            } else {
+              console.warn(`[ReminderService] No email found for user ${med.user_id}`);
             }
+          } else {
+            console.log(`[ReminderService] Email notifications disabled for user ${med.user_id}`);
           }
         }
       }

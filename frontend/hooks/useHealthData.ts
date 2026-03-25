@@ -36,12 +36,12 @@ export const useHealthData = () => {
       const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
       const [medsRes, logsRes, sugarRes, bpRes, oxygenRes, activityRes, profileRes] = await Promise.all([
-        supabase.from('medications').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-        supabase.from('medication_logs').select('*').eq('date', today),
-        supabase.from('blood_sugar_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('blood_pressure_readings').select('*').order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('oxygen_readings' as any).select('*').order('recorded_at', { ascending: false }).limit(20),
-        supabase.from('activity_readings' as any).select('*').order('date', { ascending: false }).limit(7),
+        supabase.from('medications').select('*').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('medication_logs').select('*').eq('user_id', user.id).eq('date', today),
+        supabase.from('blood_sugar_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
+        supabase.from('blood_pressure_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
+        supabase.from('oxygen_readings' as any).select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(20),
+        supabase.from('activity_readings' as any).select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
         supabase.from('profiles').select('full_name, blood_type, avatar_url').eq('id', user.id).maybeSingle()
       ]);
 

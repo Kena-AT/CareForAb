@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   date_of_birth DATE,
   blood_type TEXT,
   avatar_url TEXT,
+  language TEXT DEFAULT 'English (United States)',
   notification_preferences JSONB DEFAULT '{"email": true, "medication": true, "vitals": true}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
