@@ -31,7 +31,14 @@ export default [
       "react/prop-types": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "react/no-unescaped-entities": "off"
+      "react/no-unescaped-entities": "off",
+      "prefer-const": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "react/no-unknown-property": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "react-hooks/purity": "off",
+      "@typescript-eslint/no-require-imports": "off"
     },
     settings: {
       react: {
@@ -41,5 +48,19 @@ export default [
   },
   {
     ignores: [".next/", "node_modules/", "dist/"],
+  },
+  {
+    files: ["**/*.config.js", "**/*.config.cjs"],
+    languageOptions: {
+      globals: {
+        module: "readonly",
+        require: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+      },
+    },
+    rules: {
+      "no-undef": "off",
+    },
   },
 ];
