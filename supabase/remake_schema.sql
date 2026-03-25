@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.medications (
   times TEXT[] NOT NULL DEFAULT '{}',
   notes TEXT,
   doctor TEXT,
+  prescription_number TEXT,
   inventory_count INTEGER DEFAULT NULL,
   refill_threshold INTEGER DEFAULT 10,
   is_active BOOLEAN NOT NULL DEFAULT true,
@@ -147,3 +148,29 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_medications_updated_at BEFORE UPDATE ON public.medications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ==========================================
+-- VIEWS
+-- ==========================================
+
+-- Today's Schedule View: Combines medications with their logs for today
+CREATE OR REPLACE VIEW public.today_schedule AS
+SELECT 
+    ml.id as log_id,
+    ml.user_id,
+    ml.medication_id,
+    ml.scheduled_time,
+    ml.status,
+    ml.taken_at,
+    ml.date,
+    m.name as medication_name,
+    m.dosage,
+    m.frequency,
+    m.doctor,
+    m.inventory_count,
+    m.refill_threshold,
+    m.notes as medication_notes
+FROM public.medication_logs ml
+JOIN public.medications m ON ml.medication_id = m.id
+WHERE ml.date = CURRENT_DATE
+ORDER BY ml.scheduled_time;

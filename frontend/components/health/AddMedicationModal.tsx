@@ -7,21 +7,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Medication } from '@/types/health';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Medication, MedicationSchedule } from '@/types/health';
+import { motion } from 'framer-motion';
 
 interface AddMedicationModalProps {
   onClose: () => void;
-  onAdd: (medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>) => void;
+  onAdd: (
+    medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
+    schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
+  ) => Promise<void>;
 }
 
 export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) => {
+  // Medication template fields
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('daily');
-  const [times, setTimes] = useState<string[]>(['08:00']);
   const [notes, setNotes] = useState('');
   const [doctor, setDoctor] = useState('');
+
+  // Schedule fields
+  const [frequency, setFrequency] = useState<'daily' | 'twice_daily' | 'weekly' | 'as_needed'>('daily');
+  const [times, setTimes] = useState<string[]>(['08:00']);
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addTime = () => {
@@ -38,7 +47,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
     setTimes(newTimes);
   };
 
-  const handleFrequencyChange = (val: string) => {
+  const handleFrequencyChange = (val: 'daily' | 'twice_daily' | 'weekly' | 'as_needed') => {
     setFrequency(val);
     if (val === 'twice_daily') setTimes(['08:00', '20:00']);
     else if (val === 'daily') setTimes(['08:00']);
@@ -52,21 +61,25 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
 
     setIsSubmitting(true);
     try {
-      await onAdd({
+      const medicationData = {
         name: name.trim(),
         dosage: dosage.trim(),
-        frequency,
-        times,
         notes: notes.trim() || null,
         doctor: doctor.trim() || null,
-        inventory_count: null,
-        refill_threshold: null,
-      });
+      };
+
+      const scheduleData = {
+        frequency,
+        times,
+        start_date: startDate,
+        end_date: endDate || null,
+        reminder_minutes_before: 15,
+      };
+
+      await onAdd(medicationData, scheduleData);
       onClose();
     } catch (err: any) {
       console.error('Submission error in AddMedicationModal:', err);
-      // The parent hook (useHealthData) should already show a toast, 
-      // but we add this as a secondary safety to ensure the user knows it failed.
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +117,13 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8 overflow-y-auto">
+           {/* Medication Info Section */}
            <div className="space-y-6">
+              <div className="flex items-center gap-2 text-slate-500 mb-2">
+                <Pill size={16} />
+                <span className="text-xs font-black uppercase tracking-widest">Medication Information</span>
+              </div>
+
               <div className="space-y-3">
                  <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Medication Name</Label>
                  <Input
@@ -125,72 +144,102 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                    required
                  />
               </div>
-           </div>
-
-           <div className="space-y-3">
-              <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Routine Frequency</Label>
-              <Select value={frequency} onValueChange={handleFrequencyChange}>
-                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
-                    <SelectValue />
-                 </SelectTrigger>
-                 <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
-                    <SelectItem value="daily" className="font-bold py-3">🌅 Once Daily</SelectItem>
-                    <SelectItem value="twice_daily" className="font-bold py-3">⚖️ Twice Daily</SelectItem>
-                    <SelectItem value="weekly" className="font-bold py-3">📅 Once Weekly</SelectItem>
-                    <SelectItem value="as_needed" className="font-bold py-3">🆘 As Needed (PRN)</SelectItem>
-                 </SelectContent>
-              </Select>
-           </div>
-
-           <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest">Reminder Protocol</Label>
-                 <Button type="button" variant="ghost" size="sm" onClick={addTime} className="text-primary font-black text-[10px] uppercase tracking-widest hover:bg-[#f0fdfaff] rounded-lg">
-                    <Plus size={14} className="mr-1" /> Add Interval
-                 </Button>
-              </div>
               <div className="space-y-3">
-                 {times.map((time, index) => (
-                    <motion.div 
-                       initial={{ opacity: 0, x: -10 }} 
-                       animate={{ opacity: 1, x: 0 }} 
-                       key={index} 
-                       className="flex items-center gap-3"
-                    >
-                       <div className="flex-1 relative">
-                          <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            type="time"
-                            value={time}
-                            onChange={(e) => updateTime(index, e.target.value)}
-                            className="h-14 rounded-2xl bg-slate-50 border-none pl-12 font-bold"
-                          />
-                       </div>
-                       {times.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeTime(index)}
-                            className="w-12 h-12 rounded-xl text-red-300 hover:text-red-500 hover:bg-red-50"
-                          >
-                             <Trash2 size={18} />
-                          </Button>
-                       )}
-                    </motion.div>
-                 ))}
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Prescribing Doctor (Optional)</Label>
+                 <Input
+                   placeholder="e.g. Dr. Thompson"
+                   value={doctor}
+                   onChange={(e) => setDoctor(e.target.value)}
+                   className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                 />
               </div>
            </div>
 
-            <div className="space-y-3">
-               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Prescribing Doctor (Optional)</Label>
-               <Input
-                 placeholder="e.g. Dr. Thompson"
-                 value={doctor}
-                 onChange={(e) => setDoctor(e.target.value)}
-                 className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
-               />
-            </div>
+           {/* Schedule Section */}
+           <div className="space-y-6">
+              <div className="flex items-center gap-2 text-slate-500 mb-2">
+                <Clock size={16} />
+                <span className="text-xs font-black uppercase tracking-widest">Schedule</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                   <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Start Date</Label>
+                   <Input
+                     type="date"
+                     value={startDate}
+                     onChange={(e) => setStartDate(e.target.value)}
+                     className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                     required
+                   />
+                </div>
+                <div className="space-y-3">
+                   <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">End Date (Optional)</Label>
+                   <Input
+                     type="date"
+                     value={endDate}
+                     onChange={(e) => setEndDate(e.target.value)}
+                     min={startDate}
+                     className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                   />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Frequency</Label>
+                 <Select value={frequency} onValueChange={handleFrequencyChange}>
+                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
+                       <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
+                       <SelectItem value="daily" className="font-bold py-3">🌅 Once Daily</SelectItem>
+                       <SelectItem value="twice_daily" className="font-bold py-3">⚖️ Twice Daily</SelectItem>
+                       <SelectItem value="weekly" className="font-bold py-3">📅 Once Weekly</SelectItem>
+                       <SelectItem value="as_needed" className="font-bold py-3">🆘 As Needed (PRN)</SelectItem>
+                    </SelectContent>
+                 </Select>
+              </div>
+
+              <div className="space-y-4">
+                 <div className="flex items-center justify-between px-1">
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest">Reminder Times</Label>
+                    <Button type="button" variant="ghost" size="sm" onClick={addTime} className="text-primary font-black text-[10px] uppercase tracking-widest hover:bg-[#f0fdfaff] rounded-lg">
+                       <Plus size={14} className="mr-1" /> Add Time
+                    </Button>
+                 </div>
+                 <div className="space-y-3">
+                    {times.map((time, index) => (
+                       <motion.div 
+                          initial={{ opacity: 0, x: -10 }} 
+                          animate={{ opacity: 1, x: 0 }} 
+                          key={index} 
+                          className="flex items-center gap-3"
+                       >
+                          <div className="flex-1 relative">
+                             <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                             <Input
+                               type="time"
+                               value={time}
+                               onChange={(e) => updateTime(index, e.target.value)}
+                               className="h-14 rounded-2xl bg-slate-50 border-none pl-12 font-bold"
+                             />
+                          </div>
+                          {times.length > 1 && (
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => removeTime(index)}
+                               className="w-12 h-12 rounded-xl text-red-300 hover:text-red-500 hover:bg-red-50"
+                             >
+                                <Trash2 size={18} />
+                             </Button>
+                          )}
+                       </motion.div>
+                    ))}
+                 </div>
+              </div>
+           </div>
 
            <div className="space-y-3">
               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Clinical Notes (Optional)</Label>
@@ -222,7 +271,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                        <Calendar size={18} />
                     </motion.div>
                  ) : <Save size={18} />}
-                 {isSubmitting ? 'Syncing...' : 'Save Therapy'}
+                 {isSubmitting ? 'Creating...' : 'Create Medication'}
               </Button>
            </div>
         </form>

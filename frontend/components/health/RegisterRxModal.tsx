@@ -7,24 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Medication } from '@/types/health';
+import { Medication, MedicationSchedule } from '@/types/health';
 import { motion } from 'framer-motion';
 
 interface RegisterRxModalProps {
   onClose: () => void;
-  onAdd: (medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>) => void;
+  onAdd: (
+    medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
+    schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
+  ) => void;
 }
 
 export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
+  // Medication template fields
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
-  const [frequency, setFrequency] = useState('daily');
-  const [times, setTimes] = useState<string[]>(['08:00']);
   const [notes, setNotes] = useState('');
   const [doctor, setDoctor] = useState('');
+  const [prescriptionNumber, setPrescriptionNumber] = useState('');
+
+  // Schedule fields
+  const [frequency, setFrequency] = useState<'daily' | 'twice_daily' | 'weekly' | 'as_needed'>('daily');
+  const [times, setTimes] = useState<string[]>(['08:00']);
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState('');
+
+  // Inventory fields (optional, part of medication)
   const [inventoryCount, setInventoryCount] = useState('');
   const [refillThreshold, setRefillThreshold] = useState('10');
-  const [prescriptionNumber, setPrescriptionNumber] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addTime = () => {
@@ -55,16 +66,25 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
 
     setIsSubmitting(true);
     try {
-      await onAdd({
+      const medicationData = {
         name: name.trim(),
         dosage: dosage.trim(),
-        frequency,
-        times,
         notes: notes.trim() || null,
         doctor: doctor.trim() || null,
+        prescription_number: prescriptionNumber.trim() || null,
         inventory_count: inventoryCount ? parseInt(inventoryCount) : null,
         refill_threshold: refillThreshold ? parseInt(refillThreshold) : 10,
-      });
+      };
+
+      const scheduleData = {
+        frequency,
+        times,
+        start_date: startDate,
+        end_date: endDate || null,
+        reminder_minutes_before: 15,
+      };
+
+      await onAdd(medicationData, scheduleData);
       onClose();
     } catch (err: any) {
       console.error('Submission error in RegisterRxModal:', err);
@@ -169,7 +189,7 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
             </div>
           </div>
 
-          {/* Frequency */}
+          {/* Frequency & Dates */}
           <div className="space-y-2">
             <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">
               Frequency *
@@ -185,6 +205,34 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
                 <SelectItem value="as_needed" className="font-bold py-3">🆘 As Needed (PRN)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Schedule Dates */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">
+                Start Date *
+              </Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">
+                End Date (Optional)
+              </Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+              />
+            </div>
           </div>
 
           {/* Reminder Times */}

@@ -8,17 +8,21 @@ import { Header } from '@/components/layout/Header';
 import { AddMedicationModal } from '@/components/health/AddMedicationModal';
 import { InventoryModal } from '@/components/health/InventoryModal';
 import { RegisterRxModal } from '@/components/health/RegisterRxModal';
+import { DeleteConfirmationModal } from '@/components/health/DeleteConfirmationModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Medication, MedicationLog } from '@/types/health';
+import { Medication, MedicationSchedule, TodayScheduleItem } from '@/types/health';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '@/contexts/NotificationContext';
 
 interface MedicationsScreenProps {
   medications: Medication[];
-  medicationLogs: MedicationLog[];
+  todaySchedule: TodayScheduleItem[];
   onMarkMedicationTaken: (logId: string) => void;
-  onAddMedication: (medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>) => Promise<any>;
+  onAddMedication: (
+    medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
+    schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
+  ) => Promise<any>;
   onUpdateMedication?: (medicationId: string, updates: Partial<Medication>) => Promise<any>;
   onDeleteMedication?: (medicationId: string) => Promise<void>;
   onNotificationsClick?: () => void;
@@ -59,7 +63,7 @@ const formatDate = (date: Date) =>
 
 export const MedicationsScreen = ({
   medications,
-  medicationLogs,
+  todaySchedule,
   onMarkMedicationTaken,
   onAddMedication,
   onUpdateMedication,
@@ -71,18 +75,13 @@ export const MedicationsScreen = ({
   const [showRegisterRxModal, setShowRegisterRxModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState<string | null>(null);
   const [inventoryModalMed, setInventoryModalMed] = useState<Medication | null>(null);
+  const [deleteConfirmMed, setDeleteConfirmMed] = useState<Medication | null>(null);
   const { addNotification } = useNotifications();
 
-  const today = new Date().toISOString().split('T')[0];
-  const todayLogs = useMemo(() => {
-    return medicationLogs
-      .filter(log => log.date === today)
-      .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
-  }, [medicationLogs, today]);
-
-  const takenToday = todayLogs.filter(l => l.status === 'taken').length;
-  const adherencePercent = todayLogs.length > 0
-    ? Math.round((takenToday / todayLogs.length) * 100)
+  // Use todaySchedule directly from props - computed from medications + schedules
+  const takenToday = todaySchedule.filter(s => s.status === 'taken').length;
+  const adherencePercent = todaySchedule.length > 0
+    ? Math.round((takenToday / todaySchedule.length) * 100)
     : 100;
 
   // Medications with low inventory (refill needed)
@@ -96,15 +95,17 @@ export const MedicationsScreen = ({
       m.inventory_count <= m.refill_threshold
     ), [medications]);
 
-  const getMedicationForLog = (log: MedicationLog) =>
-    medications.find(m => m.id === log.medication_id);
-
   const handleMarkTaken = async (logId: string) => {
-    onMarkMedicationTaken(logId);
+    if (logId) {
+      onMarkMedicationTaken(logId);
+    }
   };
 
-  const handleAddMedication = async (med: Omit<Medication, 'id' | 'created_at' | 'is_active'>) => {
-    const result = await onAddMedication(med);
+  const handleAddMedication = async (
+    med: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
+    schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
+  ) => {
+    const result = await onAddMedication(med, schedule);
     if (result) {
       setShowSuccessModal(med.name);
       addNotification({
@@ -170,7 +171,7 @@ export const MedicationsScreen = ({
 
                 {/* Schedule Items */}
                 <div className="divide-y divide-slate-50">
-                  {todayLogs.length === 0 ? (
+                  {todaySchedule.length === 0 ? (
                     <div className="p-12 text-center">
                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Pill size={28} className="text-slate-300" />
@@ -179,19 +180,17 @@ export const MedicationsScreen = ({
                       <p className="text-xs text-slate-300 mt-1">Add a medication to start tracking</p>
                     </div>
                   ) : (
-                    todayLogs.map(log => {
-                      const med = getMedicationForLog(log);
-                      if (!med) return null;
-                      const isTaken = log.status === 'taken';
+                    todaySchedule.map((item, index) => {
+                      const isTaken = item.status === 'taken';
                       return (
                         <motion.div
-                          key={log.id}
+                          key={`${item.medication_id}-${item.scheduled_time}-${index}`}
                           layout
                           className={`p-5 flex items-center gap-4 transition-colors ${isTaken ? 'bg-emerald-50/50' : 'hover:bg-slate-50/70'}`}
                         >
                           {/* Time Icon */}
                           <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${isTaken ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                            {isTaken ? <CheckCircle2 size={20} className="text-emerald-600" /> : <TimeIcon time={log.scheduled_time} />}
+                            {isTaken ? <CheckCircle2 size={20} className="text-emerald-600" /> : <TimeIcon time={item.scheduled_time} />}
                           </div>
 
                           {/* Medication Info */}
@@ -200,22 +199,22 @@ export const MedicationsScreen = ({
                               <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isTaken ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                 {isTaken ? 'Taken' : 'Pending'}
                               </span>
-                              <span className="text-xs text-slate-400 font-medium">{formatTime(log.scheduled_time)}</span>
-                              {isTaken && log.taken_at && (
+                              <span className="text-xs text-slate-400 font-medium">{formatTime(item.scheduled_time)}</span>
+                              {isTaken && item.taken_at && (
                                 <span className="text-xs text-emerald-500 font-bold">
-                                  ✓ {new Date(log.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  ✓ {new Date(item.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               )}
                             </div>
-                            <p className="font-black text-slate-900 truncate">{med.name}</p>
-                            <p className="text-xs text-slate-400 font-medium">{med.dosage} • {FREQUENCY_LABELS[med.frequency] || med.frequency}</p>
+                            <p className="font-black text-slate-900 truncate">{item.medication_name}</p>
+                            <p className="text-xs text-slate-400 font-medium">{item.dosage}</p>
                           </div>
 
                           {/* Action */}
-                          {!isTaken && (
+                          {!isTaken && item.log_id && (
                             <Button
                               size="sm"
-                              onClick={() => handleMarkTaken(log.id)}
+                              onClick={() => handleMarkTaken(item.log_id!)}
                               className="bg-[#004c56] hover:bg-[#003a42] text-white rounded-xl h-9 px-5 shrink-0 font-bold text-xs shadow-sm"
                             >
                               Mark as Taken
@@ -327,7 +326,7 @@ export const MedicationsScreen = ({
                               <PackageOpen size={14} /> Manage Inventory
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => onDeleteMedication?.(med.id)}
+                              onClick={() => setDeleteConfirmMed(med)}
                               className="text-red-500 font-bold gap-2 rounded-xl"
                             >
                               <Trash2 size={14} /> Remove Medication
@@ -344,15 +343,9 @@ export const MedicationsScreen = ({
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dosage</p>
-                          <p className="text-sm font-bold text-slate-700">{med.dosage}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frequency</p>
-                          <p className="text-sm font-bold text-slate-700">{FREQUENCY_LABELS[med.frequency] || med.frequency}</p>
-                        </div>
+                      <div className="mb-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dosage</p>
+                        <p className="text-sm font-bold text-slate-700">{med.dosage}</p>
                       </div>
 
                       {/* Inventory Bar */}
@@ -436,6 +429,20 @@ export const MedicationsScreen = ({
             medication={inventoryModalMed}
             onClose={() => setInventoryModalMed(null)}
             onUpdate={onUpdateMedication}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmMed && onDeleteMedication && (
+          <DeleteConfirmationModal
+            medicationName={deleteConfirmMed.name}
+            onClose={() => setDeleteConfirmMed(null)}
+            onConfirm={async () => {
+              await onDeleteMedication(deleteConfirmMed.id);
+              setDeleteConfirmMed(null);
+            }}
           />
         )}
       </AnimatePresence>

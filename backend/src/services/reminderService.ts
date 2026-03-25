@@ -10,67 +10,118 @@ export const supabase = createClient(supabaseUrl!, supabaseKey!);
 export class ReminderService {
   private isProcessing = false;
 
+  /**
+   * Check schedules and send reminders based on timing rules.
+   * This runs every minute via cron.
+   */
   async checkAndSendReminders() {
     if (this.isProcessing) return;
     this.isProcessing = true;
 
     try {
       const now = new Date();
-      // Use UTC to match server time, or local time - need to be consistent
+      const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
       const currentHourMinute = now.getHours().toString().padStart(2, '0') + ':' + 
                                now.getMinutes().toString().padStart(2, '0');
       
-      console.log(`[ReminderService] Checking for medications due at ${currentHourMinute} (server time)...`);
+      console.log(`[ReminderService] Checking schedules at ${currentHourMinute} (${today})...`);
       
-      const { data: medications, error } = await supabase
-        .from('medications')
-        .select('*')
-        .eq('is_active', true);
+      // Query active schedules that apply to today
+      // Schedule must: start_date <= today AND (end_date IS NULL OR end_date >= today) AND is_active = true
+      const { data: schedules, error } = await supabase
+        .from('medication_schedules')
+        .select(`
+          *,
+          medications!inner(*)
+        `)
+        .eq('is_active', true)
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`);
 
-      if (error) throw error;
-      if (!medications || medications.length === 0) {
-        console.log('[ReminderService] No active medications found');
+      if (error) {
+        console.error('[ReminderService] Error fetching schedules:', error);
+        return;
+      }
+      
+      if (!schedules || schedules.length === 0) {
+        console.log('[ReminderService] No active schedules for today');
         return;
       }
 
-      console.log(`[ReminderService] Found ${medications.length} active medications`);
+      console.log(`[ReminderService] Found ${schedules.length} active schedules`);
 
-      for (const med of medications) {
-        if (!med.times || !Array.isArray(med.times)) {
-          console.log(`[ReminderService] Medication ${med.name} has no times configured`);
+      for (const schedule of schedules) {
+        // Get medication info from the join
+        const medication = (schedule as any).medications;
+        if (!medication) {
+          console.log(`[ReminderService] No medication found for schedule ${schedule.id}`);
           continue;
         }
-        
+
+        // Check if any of the schedule times match current time
+        if (!schedule.times || !Array.isArray(schedule.times)) {
+          console.log(`[ReminderService] Schedule ${schedule.id} has no times configured`);
+          continue;
+        }
+
         // Normalize time format for comparison
         const normalizedCurrentTime = currentHourMinute.trim();
-        const normalizedMedTimes = med.times.map((t: string) => t.trim());
+        const normalizedScheduleTimes = schedule.times.map((t: string) => t.trim());
         
-        if (normalizedMedTimes.includes(normalizedCurrentTime)) {
-          console.log(`[ReminderService] Medication ${med.name} is due at ${normalizedCurrentTime}`);
+        if (normalizedScheduleTimes.includes(normalizedCurrentTime)) {
+          console.log(`[ReminderService] Medication ${medication.name} is due at ${normalizedCurrentTime} for user ${schedule.user_id}`);
           
-          // Fetch user profile separately to avoid PGRST200 relationship error
+          // Check if log already exists for this dose today
+          const { data: existingLog } = await supabase
+            .from('medication_logs')
+            .select('id, status')
+            .eq('medication_id', medication.id)
+            .eq('user_id', schedule.user_id)
+            .eq('date', today)
+            .eq('scheduled_time', normalizedCurrentTime)
+            .maybeSingle();
+
+          // Create pending log if doesn't exist
+          if (!existingLog) {
+            const { error: logError } = await supabase
+              .from('medication_logs')
+              .insert({
+                user_id: schedule.user_id,
+                medication_id: medication.id,
+                scheduled_time: normalizedCurrentTime,
+                date: today,
+                status: 'pending'
+              });
+            
+            if (logError) {
+              console.error('[ReminderService] Error creating log:', logError);
+            }
+          }
+
+          // Fetch user profile for notification preferences
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('full_name, id, notification_preferences, language')
-            .eq('id', med.user_id)
+            .eq('id', schedule.user_id)
             .single();
 
           if (profileError) {
-            console.error(`[ReminderService] Error fetching profile for user ${med.user_id}:`, profileError);
+            console.error(`[ReminderService] Error fetching profile for user ${schedule.user_id}:`, profileError);
             continue;
           }
 
           const prefs = (profile as any)?.notification_preferences || { email: true, medication: true };
           
+          // Send email reminder if enabled
           if (prefs.email && prefs.medication) {
-            const userEmail = await this.getUserEmail(med.user_id);
+            const userEmail = await this.getUserEmail(schedule.user_id);
             if (userEmail) {
-              console.log(`[ReminderService] Sending reminder to ${userEmail} for ${med.name}`);
+              console.log(`[ReminderService] Sending reminder to ${userEmail} for ${medication.name}`);
               const result = await emailService.sendMedicationReminder(
                 userEmail,
                 (profile as any)?.full_name || 'Valued User',
-                med.name,
-                med.dosage,
+                medication.name,
+                medication.dosage,
                 normalizedCurrentTime
               );
               
@@ -82,16 +133,16 @@ export class ReminderService {
 
               // Also add in-app notification
               await supabase.from('notifications').insert({
-                user_id: med.user_id,
+                user_id: schedule.user_id,
                 title: 'Medication Due',
-                message: `Time to take ${med.name} (${med.dosage})`,
+                message: `Time to take ${medication.name} (${medication.dosage})`,
                 type: 'reminder'
               });
             } else {
-              console.warn(`[ReminderService] No email found for user ${med.user_id}`);
+              console.warn(`[ReminderService] No email found for user ${schedule.user_id}`);
             }
           } else {
-            console.log(`[ReminderService] Email notifications disabled for user ${med.user_id}`);
+            console.log(`[ReminderService] Email notifications disabled for user ${schedule.user_id}`);
           }
         }
       }
