@@ -31,7 +31,9 @@ export const useHealthData = () => {
 
     setIsLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Use local date for "Today" to match user expectation instead of UTC
+      const now = new Date();
+      const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
       const [medsRes, logsRes, sugarRes, bpRes, oxygenRes, activityRes, profileRes] = await Promise.all([
         supabase.from('medications').select('*').eq('is_active', true).order('created_at', { ascending: false }),
@@ -120,7 +122,8 @@ export const useHealthData = () => {
   const createMedicationLog = async (medicationId: string, scheduledTime: string) => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
     try {
       const { data, error } = await supabase
@@ -139,6 +142,7 @@ export const useHealthData = () => {
       setMedicationLogs(prev => [...prev, data as MedicationLog]);
     } catch (error: any) {
       console.error('Error creating medication log:', error);
+      toast.error(`Log Error: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -223,10 +227,12 @@ export const useHealthData = () => {
       }
 
       toast.success('Medication added!');
+      // Force a full refetch to ensure all today's logs are pulled in correctly
+      await fetchData();
       return data;
     } catch (error: any) {
       console.error('Error adding medication:', error);
-      toast.error('Failed to add medication');
+      toast.error(`Add Error: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -273,7 +279,8 @@ export const useHealthData = () => {
   }, [oxygenReadings]);
 
   const getTodaySteps = useCallback(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
     return activityReadings.find(a => a.date === today)?.steps || 0;
   }, [activityReadings]);
 
@@ -294,7 +301,8 @@ export const useHealthData = () => {
 
   const updateTodaySteps = async (steps: number) => {
     if (!user) return;
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
     try {
       const { data, error } = await (supabase.from('activity_readings' as any) as any)
         .upsert({ user_id: user.id, date: today, steps }, { onConflict: 'user_id,date' })

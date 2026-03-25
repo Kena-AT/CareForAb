@@ -21,6 +21,7 @@ interface MedicationsScreenProps {
   onDeleteMedication?: (medicationId: string) => Promise<void>;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
 const FREQUENCY_LABELS: Record<string, string> = {
@@ -61,6 +62,7 @@ export const MedicationsScreen = ({
   onAddMedication,
   onUpdateMedication,
   onDeleteMedication,
+  onRefresh,
   onSettingsClick,
 }: MedicationsScreenProps) => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -121,12 +123,22 @@ export const MedicationsScreen = ({
         onSettingsClick={onSettingsClick}
         subtitle="Management Console"
         rightElement={
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-[#004c56] hover:bg-[#003a42] text-white rounded-2xl h-11 px-6 font-bold text-sm flex items-center gap-2 shadow-lg shadow-teal-900/20"
-          >
-            <Plus size={18} /> Add New Medication
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              className="rounded-xl hover:bg-slate-50 text-slate-400 border-none shadow-sm h-11 w-11"
+            >
+              <RefreshCcw size={18} />
+            </Button>
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#004c56] hover:bg-[#003a42] text-white rounded-2xl h-11 px-6 font-bold text-sm flex items-center gap-2 shadow-lg shadow-teal-900/20"
+            >
+              <Plus size={18} /> Add New Medication
+            </Button>
+          </div>
         }
       />
 

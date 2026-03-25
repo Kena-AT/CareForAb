@@ -80,7 +80,7 @@ export class ReminderService {
     }
   }
 
-  private async sendWeeklyHealthSummaries() {
+  public async sendWeeklyHealthSummaries() {
     console.log('[ReminderService] Running Weekly Health Summary task...');
     try {
       const { data: profiles, error } = await supabase
@@ -112,7 +112,7 @@ export class ReminderService {
     }
   }
 
-  private async checkLowInventory() {
+  public async checkLowInventory() {
     console.log('[ReminderService] Running Low Inventory check...');
     try {
       const { data: medications, error } = await supabase

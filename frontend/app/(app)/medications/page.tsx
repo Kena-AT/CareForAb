@@ -4,7 +4,7 @@ import { MedicationsScreen } from "@/components/screens/MedicationsScreen";
 import { useHealth } from "@/contexts/HealthContext";
 
 export default function MedicationsPage() {
-  const { medications, medicationLogs, markMedicationTaken, addMedication, deleteMedication } = useHealth();
+  const { medications, medicationLogs, markMedicationTaken, addMedication, deleteMedication, refetch } = useHealth();
 
   return (
     <MedicationsScreen
@@ -13,6 +13,7 @@ export default function MedicationsPage() {
       onMarkMedicationTaken={markMedicationTaken}
       onAddMedication={addMedication as any}
       onDeleteMedication={deleteMedication}
+      onRefresh={refetch}
     />
   );
 }

@@ -41,6 +41,16 @@ app.post('/api/reminders/test', requireAuth, async (req, res) => {
   res.json({ message: 'Reminder check triggered by admin' });
 });
 
+app.post('/api/reminders/inventory', requireAuth, async (req, res) => {
+  await reminderService.checkLowInventory();
+  res.json({ message: 'Low inventory check triggered manually' });
+});
+
+app.post('/api/reminders/summary', requireAuth, async (req, res) => {
+  await reminderService.sendWeeklyHealthSummaries();
+  res.json({ message: 'Weekly summary dispatch triggered manually' });
+});
+
 // Start the reminder service
 reminderService.startCron();
 
