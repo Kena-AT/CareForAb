@@ -26,10 +26,12 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
   const [doctor, setDoctor] = useState('');
 
   // Schedule fields
+  const [treatmentType, setTreatmentType] = useState<'chronic' | 'acute' | 'supplement'>('chronic');
   const [frequency, setFrequency] = useState<'daily' | 'twice_daily' | 'weekly' | 'as_needed'>('daily');
   const [times, setTimes] = useState<string[]>(['08:00']);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
+  const [isIndefinite, setIsIndefinite] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,17 +49,27 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
     setTimes(newTimes);
   };
 
-  const handleFrequencyChange = (val: 'daily' | 'twice_daily' | 'weekly' | 'as_needed') => {
-    setFrequency(val);
-    if (val === 'twice_daily') setTimes(['08:00', '20:00']);
-    else if (val === 'daily') setTimes(['08:00']);
-    else if (val === 'weekly') setTimes(['08:00']);
-    else setTimes(['08:00']);
+  const handleTreatmentTypeChange = (val: 'chronic' | 'acute' | 'supplement') => {
+    setTreatmentType(val);
+    if (val === 'chronic') {
+      setIsIndefinite(true);
+      setEndDate('');
+    } else {
+      setIsIndefinite(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !dosage.trim() || times.length === 0) return;
+    
+    // Safety check: Daily medication must have an end date or be marked indefinite
+    if (frequency === 'daily' && !isIndefinite && !endDate) {
+      alert('Please specify an end date or mark the treatment as ongoing for daily medications.');
+      return;
+    }
+    
+    if (!isIndefinite && !endDate) return;
 
     setIsSubmitting(true);
     try {
@@ -70,9 +82,11 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
 
       const scheduleData = {
         frequency,
+        treatment_type: treatmentType,
         times,
         start_date: startDate,
-        end_date: endDate || null,
+        end_date: isIndefinite ? null : endDate,
+        is_indefinite: isIndefinite,
         reminder_minutes_before: 15,
       };
 
@@ -83,6 +97,14 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFrequencyChange = (val: 'daily' | 'twice_daily' | 'weekly' | 'as_needed') => {
+    setFrequency(val);
+    if (val === 'twice_daily') setTimes(['08:00', '20:00']);
+    else if (val === 'daily') setTimes(['08:00']);
+    else if (val === 'weekly') setTimes(['08:00']);
+    else setTimes(['08:00']);
   };
 
   return (
@@ -162,6 +184,20 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                 <span className="text-xs font-black uppercase tracking-widest">Schedule</span>
               </div>
 
+              <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Treatment Duration</Label>
+                 <Select value={treatmentType} onValueChange={handleTreatmentTypeChange}>
+                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
+                       <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
+                       <SelectItem value="chronic" className="font-bold py-3">🔄 Ongoing (Chronic)</SelectItem>
+                       <SelectItem value="acute" className="font-bold py-3">⏱️ Fixed Duration (Acute)</SelectItem>
+                       <SelectItem value="supplement" className="font-bold py-3">🌿 Supplement</SelectItem>
+                    </SelectContent>
+                 </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Start Date</Label>
@@ -173,17 +209,33 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                      required
                    />
                 </div>
-                <div className="space-y-3">
-                   <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">End Date (Optional)</Label>
-                   <Input
-                     type="date"
-                     value={endDate}
-                     onChange={(e) => setEndDate(e.target.value)}
-                     min={startDate}
-                     className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
-                   />
-                </div>
+                {!isIndefinite && (
+                  <div className="space-y-3">
+                     <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">End Date</Label>
+                     <Input
+                       type="date"
+                       value={endDate}
+                       onChange={(e) => setEndDate(e.target.value)}
+                       min={startDate}
+                       className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold"
+                       required={!isIndefinite}
+                     />
+                  </div>
+                )}
               </div>
+
+              {isIndefinite && (
+                <div className="flex items-center space-x-2 px-1">
+                  <input
+                    type="checkbox"
+                    id="indefinite"
+                    checked={isIndefinite}
+                    onChange={(e) => setIsIndefinite(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-[#004c56] focus:ring-[#004c56]"
+                  />
+                  <Label htmlFor="indefinite" className="text-xs font-bold text-slate-600">Take indefinitely</Label>
+                </div>
+              )}
 
               <div className="space-y-3">
                  <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Frequency</Label>

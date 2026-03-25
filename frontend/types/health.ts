@@ -20,9 +20,11 @@ export interface MedicationSchedule {
   user_id?: string;
   medication_id: string;
   frequency: 'daily' | 'twice_daily' | 'weekly' | 'as_needed';
+  treatment_type: 'chronic' | 'acute' | 'supplement';
   times: string[];
   start_date: string;
   end_date?: string | null;
+  is_indefinite: boolean;
   reminder_minutes_before?: number;
   is_active: boolean;
   created_at: string;

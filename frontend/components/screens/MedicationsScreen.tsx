@@ -241,7 +241,7 @@ export const MedicationsScreen = ({
                   <p className="text-2xl font-bold text-teal-200 mb-1">%</p>
                 </div>
                 <p className="text-teal-100/70 text-xs mb-4">
-                  {takenToday}/{todayLogs.length} doses taken today
+                  {takenToday}/{todaySchedule.length} doses taken today
                 </p>
                 <div className="w-full h-2 bg-teal-800 rounded-full overflow-hidden">
                   <div

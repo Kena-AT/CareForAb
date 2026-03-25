@@ -34,6 +34,7 @@ export const useHealthData = () => {
     blood_type: string | null; 
     avatar_url: string | null;
     language?: string | null;
+    timezone?: string | null;
   } | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -170,32 +171,35 @@ export const useHealthData = () => {
         .from('medication_logs')
         .update({ status: 'taken', taken_at: new Date().toISOString() })
         .eq('id', logId)
-        .select('medication_id')
+        .select('medication_id, status')
         .single();
 
       if (error) throw error;
 
-      // Decrement inventory if tracked
-      if (logData?.medication_id) {
-        const med = medications.find(m => m.id === logData.medication_id);
-        if (med && med.inventory_count !== null && med.inventory_count !== undefined) {
-          const newCount = Math.max(0, med.inventory_count - 1);
-          await supabase
-            .from('medications')
-            .update({ inventory_count: newCount })
-            .eq('id', med.id);
-          
-          setMedications(prev => prev.map(m => 
-            m.id === med.id ? { ...m, inventory_count: newCount } : m
-          ));
-        }
-      }
-
+      // Inventory is now decremented by database trigger when status changes from pending to taken
+      // Just update local state to reflect the change
       setMedicationLogs(logs =>
         logs.map(log =>
           log.id === logId ? { ...log, status: 'taken' as const, taken_at: new Date().toISOString() } : log
         )
       );
+      
+      // Refresh medications to get updated inventory count from trigger
+      const { data: updatedMed } = await supabase
+        .from('medications')
+        .select('id, inventory_count')
+        .eq('id', logData.medication_id)
+        .single();
+        
+      if (updatedMed) {
+        setMedications(prev => 
+          prev.map(m => m.id === updatedMed.id ? { ...m, inventory_count: updatedMed.inventory_count } : m)
+        );
+      }
+      
+      // Refresh today's schedule to reflect changes
+      await fetchData();
+      
       toast.success('Medication marked as taken!');
     } catch (error: any) {
       console.error('Error marking medication:', error);
@@ -440,6 +444,61 @@ export const useHealthData = () => {
     return taken === todaySchedule.length && taken > 0 ? 1 : 0;
   }, [todaySchedule]);
 
+  const getLatestPulse = useCallback((): number | null => {
+    const latestBP = bloodPressureReadings[0];
+    return latestBP?.pulse ?? null;
+  }, [bloodPressureReadings]);
+
+  const getLatestOxygen = useCallback((): number | null => {
+    return oxygenReadings[0]?.value ?? null;
+  }, [oxygenReadings]);
+
+  const getTodaySteps = useCallback(() => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    return activityReadings.find(a => a.date === today)?.steps || 0;
+  }, [activityReadings]);
+
+  const calculateHealthScore = useCallback(() => {
+    const stability = calculateGlucoseStability();
+    const adherence = calculateAdherenceRate();
+    return Math.round((stability * 0.6) + (adherence * 0.4));
+  }, [calculateGlucoseStability, calculateAdherenceRate]);
+
+  const addOxygenReading = async (value: number) => {
+    if (!user) return;
+    try {
+      const { data, error } = await (supabase.from('oxygen_readings' as any) as any)
+        .insert({ user_id: user.id, value })
+        .select()
+        .single();
+      if (error) throw error;
+      setOxygenReadings(prev => [data as OxygenReading, ...prev]);
+      toast.success('Oxygen level saved');
+    } catch (error) {
+      console.error('Error adding oxygen reading:', error);
+    }
+  };
+
+  const updateTodaySteps = async (steps: number) => {
+    if (!user) return;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    try {
+      const { data, error } = await (supabase.from('activity_readings' as any) as any)
+        .upsert({ user_id: user.id, date: today, steps }, { onConflict: 'user_id,date' })
+        .select()
+        .single();
+      if (error) throw error;
+      setActivityReadings(prev => {
+        const filtered = prev.filter(a => a.date !== today);
+        return [data as ActivityReading, ...filtered];
+      });
+    } catch (error) {
+      console.error('Error updating steps:', error);
+    }
+  };
+
   return {
     // Core data - separated structure
     medications,
@@ -480,6 +539,7 @@ export const useHealthData = () => {
     bloodType: profile?.blood_type,
     avatarUrl: profile?.avatar_url,
     language: profile?.language,
+    timezone: profile?.timezone,
     refetch: fetchData
   };
 };
