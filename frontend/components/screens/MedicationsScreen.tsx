@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { AddMedicationModal } from '@/components/health/AddMedicationModal';
 import { InventoryModal } from '@/components/health/InventoryModal';
+import { RegisterRxModal } from '@/components/health/RegisterRxModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Medication, MedicationLog } from '@/types/health';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,6 +68,7 @@ export const MedicationsScreen = ({
   onSettingsClick,
 }: MedicationsScreenProps) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showRegisterRxModal, setShowRegisterRxModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState<string | null>(null);
   const [inventoryModalMed, setInventoryModalMed] = useState<Medication | null>(null);
   const { addNotification } = useNotifications();
@@ -390,7 +392,7 @@ export const MedicationsScreen = ({
             {/* Register New Button */}
             <motion.div variants={item}>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => setShowRegisterRxModal(true)}
                 className="w-full h-full min-h-[200px] border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50/20 transition-all group"
               >
                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-teal-100 flex items-center justify-center transition-colors">
@@ -406,6 +408,16 @@ export const MedicationsScreen = ({
         </motion.div>
 
       </motion.main>
+
+      {/* Register Rx Modal */}
+      <AnimatePresence>
+        {showRegisterRxModal && (
+          <RegisterRxModal
+            onClose={() => setShowRegisterRxModal(false)}
+            onAdd={handleAddMedication}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Add Medication Modal */}
       <AnimatePresence>

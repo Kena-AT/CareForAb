@@ -86,9 +86,9 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col"
+        className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl relative max-h-[90vh] flex flex-col"
       >
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-20">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#f0fdfaff] text-[#004c56ff] flex items-center justify-center">
                  <Pill size={24} />
@@ -133,7 +133,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold">
                     <SelectValue />
                  </SelectTrigger>
-                 <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                 <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
                     <SelectItem value="daily" className="font-bold py-3">🌅 Once Daily</SelectItem>
                     <SelectItem value="twice_daily" className="font-bold py-3">⚖️ Twice Daily</SelectItem>
                     <SelectItem value="weekly" className="font-bold py-3">📅 Once Weekly</SelectItem>
@@ -203,7 +203,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
               />
            </div>
 
-           <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2">
+           <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2 z-20">
               <Button
                 type="button"
                 variant="ghost"

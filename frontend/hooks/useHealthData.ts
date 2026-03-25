@@ -221,14 +221,31 @@ export const useHealthData = () => {
       if (error) throw error;
       setMedications(prev => [data as Medication, ...prev]);
 
-      // Create logs for today
-      for (const time of medication.times) {
-        await createMedicationLog(data.id, time);
+      // Create logs for today - use the validated user.id directly
+      const now = new Date();
+      const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+      
+      const logInserts = medication.times.map(time => ({
+        user_id: user.id,
+        medication_id: data.id,
+        scheduled_time: time,
+        date: today,
+        status: 'pending'
+      }));
+
+      const { data: logsData, error: logsError } = await supabase
+        .from('medication_logs')
+        .insert(logInserts)
+        .select();
+
+      if (logsError) {
+        console.error('Error creating medication logs:', logsError);
+        toast.error(`Log creation failed: ${logsError.message}`);
+      } else if (logsData) {
+        setMedicationLogs(prev => [...prev, ...logsData as MedicationLog[]]);
       }
 
       toast.success('Medication added!');
-      // Force a full refetch to ensure all today's logs are pulled in correctly
-      await fetchData();
       return data;
     } catch (error: any) {
       console.error('Error adding medication:', error);
