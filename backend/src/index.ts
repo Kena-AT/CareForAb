@@ -3,7 +3,8 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import morgan from 'morgan';
+import pinoHttp from 'pino-http';
+import { logger } from './utils/logger';
 import { reminderService } from './services/reminderService';
 import authRoutes from './routes/authRoutes';
 import { errorHandler } from './middleware/errorHandler';
@@ -16,7 +17,16 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
-app.use(morgan('dev'));
+
+// Structured logging with Pino
+app.use(pinoHttp({ 
+  logger,
+  customLogLevel: (req, res) => {
+    if (res.statusCode >= 500) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  }
+}));
 
 // Global security monitor
 app.use(monitorSuspiciousActivity);
@@ -58,5 +68,5 @@ reminderService.startCron();
 app.use(errorHandler);
 
 app.listen(port, () => {
-  console.log('[Backend] Server running on http://localhost:'+port);
+  logger.info({ port }, 'Server started');
 });

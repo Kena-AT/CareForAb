@@ -13,6 +13,11 @@ import {
   ActivityReading
 } from '@/types/health';
 
+export interface AuthRequest extends Request {
+  user?: { id: string; [key: string]: unknown };
+  id?: string | number; // Request correlation ID - compatible with Express ReqId
+}
+
 export const useHealthData = () => {
   const { user } = useAuth();
   
@@ -307,7 +312,8 @@ export const useHealthData = () => {
           doctor: medication.doctor,
           prescription_number: medication.prescription_number,
           is_active: true,
-        })
+          frequency: 'custom', // Default value for legacy compatibility
+        } as any)
         .select()
         .single();
 
