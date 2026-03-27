@@ -117,7 +117,7 @@ export class ReminderService {
     }
   }
 
-  private async processUserReminders(userId: string, schedules: any[]) {
+  private async processUserReminders(userId: string, schedules: { medications: { id: string; name: string; dosage: string }; specific_times: string[]; user_id: string }[]) {
     const userLogger = this.serviceLogger.child({ userId });
     const { data: profile, error: profileError } = await supabase
       .from('profiles')

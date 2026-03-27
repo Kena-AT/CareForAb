@@ -1,3 +1,7 @@
+-- Self-contained migration: creates schema and guards external dependencies
+CREATE SCHEMA IF NOT EXISTS audit;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create oxygen_readings table
 CREATE TABLE IF NOT EXISTS public.oxygen_readings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -36,6 +40,15 @@ ON public.activity_readings FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update their own activity readings" 
 ON public.activity_readings FOR UPDATE USING (auth.uid() = user_id);
 
--- Add to audit logging if exists
-SELECT audit.enable_tracking('public.oxygen_readings');
-SELECT audit.enable_tracking('public.activity_readings');
+-- Guarded audit tracking - only runs if audit.enable_tracking exists
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 
+    FROM pg_proc 
+    WHERE proname = 'enable_tracking'
+  ) THEN
+    PERFORM audit.enable_tracking('public.oxygen_readings');
+    PERFORM audit.enable_tracking('public.activity_readings');
+  END IF;
+END $$;

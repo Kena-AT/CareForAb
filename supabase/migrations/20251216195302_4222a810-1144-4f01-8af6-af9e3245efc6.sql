@@ -7,7 +7,7 @@ CREATE TABLE public.profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Create medications table
+-- Create medications table with all columns needed for future migrations
 CREATE TABLE public.medications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -16,6 +16,10 @@ CREATE TABLE public.medications (
   frequency TEXT NOT NULL,
   times TEXT[] NOT NULL DEFAULT '{}',
   notes TEXT,
+  doctor TEXT,
+  prescription_number TEXT,
+  inventory_count INTEGER,
+  refill_threshold INTEGER,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

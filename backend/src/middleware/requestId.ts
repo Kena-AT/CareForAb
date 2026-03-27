@@ -3,6 +3,12 @@ import { randomUUID } from 'crypto';
 import { AuthRequest } from './authMiddleware';
 import { getRequestLogger } from '../utils/logger';
 
+interface RequestWithLogger extends AuthRequest {
+  log: ReturnType<typeof getRequestLogger>;
+  startTime: number;
+  requestId: string;
+}
+
 /**
  * Request correlation ID middleware.
  * Attaches a unique request ID to each request for distributed tracing.
@@ -16,12 +22,12 @@ export const requestIdMiddleware = (
   // Generate or extract request ID
   const requestId = (req.headers['x-request-id'] as string) || randomUUID();
   
-  // Attach to request
-  req.id = requestId;
+  // Attach to request (cast needed for Express type compatibility)
+  (req as unknown as RequestWithLogger).requestId = requestId;
   
   // Create child logger with request context
   const requestLogger = getRequestLogger(requestId);
-  (req as any).log = requestLogger;
+  (req as unknown as RequestWithLogger).log = requestLogger;
   
   // Set response header so client can correlate
   res.setHeader('X-Request-Id', requestId);
@@ -37,15 +43,17 @@ export const requestIdMiddleware = (
   }, 'Request started');
   
   // Log response finish
+  const startTime = Date.now();
+  (req as unknown as RequestWithLogger).startTime = startTime;
+  
   res.on('finish', () => {
     requestLogger.info({
       res: {
         statusCode: res.statusCode,
       },
-      duration: Date.now() - (req as any).startTime,
+      duration: Date.now() - startTime,
     }, 'Request completed');
   });
   
-  (req as any).startTime = Date.now();
   next();
 };

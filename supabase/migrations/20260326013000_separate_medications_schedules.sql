@@ -4,6 +4,40 @@
 -- ==========================================
 
 -- ==========================================
+-- PART 0: Ensure medications table has all required columns
+-- ==========================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'medications' AND column_name = 'doctor'
+    ) THEN
+        ALTER TABLE public.medications ADD COLUMN doctor TEXT;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'medications' AND column_name = 'prescription_number'
+    ) THEN
+        ALTER TABLE public.medications ADD COLUMN prescription_number TEXT;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'medications' AND column_name = 'inventory_count'
+    ) THEN
+        ALTER TABLE public.medications ADD COLUMN inventory_count INTEGER;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'medications' AND column_name = 'refill_threshold'
+    ) THEN
+        ALTER TABLE public.medications ADD COLUMN refill_threshold INTEGER;
+    END IF;
+END $$;
+
+-- ==========================================
 -- PART 1: Ensure profiles table has language column
 -- ==========================================
 DO $$

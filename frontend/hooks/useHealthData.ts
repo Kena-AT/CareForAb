@@ -13,11 +13,6 @@ import {
   ActivityReading
 } from '@/types/health';
 
-export interface AuthRequest extends Request {
-  user?: { id: string; [key: string]: unknown };
-  id?: string | number; // Request correlation ID - compatible with Express ReqId
-}
-
 export const useHealthData = () => {
   const { user } = useAuth();
   
@@ -92,6 +87,9 @@ export const useHealthData = () => {
       if (logsRes.error) throw logsRes.error;
       if (sugarRes.error) throw sugarRes.error;
       if (bpRes.error) throw bpRes.error;
+      if (oxygenRes.error) throw oxygenRes.error;
+      if (activityRes.error) throw activityRes.error;
+      if (profileRes.error) throw profileRes.error;
 
       // Update states
       setMedications(medsRes.data as Medication[] || []);
@@ -112,8 +110,8 @@ export const useHealthData = () => {
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
       setProfile(profileRes.data as any);
     } catch (error: any) {
-      console.error('Error fetching health data:', error);
-      toast.error('Failed to load health data');
+      console.error('Error fetching health data:', error?.message || error?.code || JSON.stringify(error) || 'Unknown error');
+      toast.error(`Failed to load health data: ${error?.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

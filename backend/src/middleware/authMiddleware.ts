@@ -2,10 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../services/reminderService';
 
-export interface AuthRequest extends Request {
-  user?: { id: string; [key: string]: any };
-  id?: string; // Request correlation ID
+// Augment Express Request type to add our custom properties
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: string; [key: string]: unknown };
+      requestId?: string;
+    }
+  }
 }
+
+// Alias for convenience - using declaration merged Request
+export type AuthRequest = Request;
 
 // JWT verification is faster than calling Supabase for every request
 const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
@@ -53,7 +61,7 @@ export const requireAuth = async (
     // Attempt local JWT verification first (faster, no network call)
     if (SUPABASE_JWT_SECRET) {
       try {
-        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET, JWT_VERIFY_OPTIONS) as any;
+        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET, JWT_VERIFY_OPTIONS) as { sub: string; exp?: number; nbf?: number; [key: string]: unknown };
         
         // Additional explicit validation beyond jwt.verify
         const now = Math.floor(Date.now() / 1000);
@@ -70,9 +78,10 @@ export const requireAuth = async (
         
         req.user = { id: decoded.sub, ...decoded };
         return next();
-      } catch (jwtError: any) {
+      } catch (jwtError: unknown) {
         // Local verification failed - fall through to Supabase
-        console.log('[AuthMiddleware] Local JWT verify failed:', jwtError.message);
+        const errorMessage = jwtError instanceof Error ? jwtError.message : 'Unknown error';
+        console.log('[AuthMiddleware] Local JWT verify failed:', errorMessage);
       }
     }
 
