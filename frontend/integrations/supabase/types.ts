@@ -115,6 +115,56 @@ export type Database = {
           },
         ]
       }
+      medication_schedules: {
+        Row: {
+          created_at: string
+          days_of_week: string[]
+          dosage: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          medication_id: string
+          specific_times: string[]
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_of_week?: string[]
+          dosage: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          medication_id: string
+          specific_times?: string[]
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: string[]
+          dosage?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          medication_id?: string
+          specific_times?: string[]
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_schedules_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medications: {
         Row: {
           created_at: string
@@ -126,6 +176,7 @@ export type Database = {
           is_active: boolean
           name: string
           notes: string | null
+          prescription_number: string | null
           refill_threshold: number | null
           times: string[]
           updated_at: string
@@ -141,6 +192,7 @@ export type Database = {
           is_active?: boolean
           name: string
           notes?: string | null
+          prescription_number?: string | null
           refill_threshold?: number | null
           times?: string[]
           updated_at?: string
@@ -156,6 +208,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           notes?: string | null
+          prescription_number?: string | null
           refill_threshold?: number | null
           times?: string[]
           updated_at?: string

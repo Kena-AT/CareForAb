@@ -1,10 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { supabase } from '../services/reminderService';
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: { id: string; [key: string]: any };
+  id?: string; // Request correlation ID
 }
 
+// JWT verification is faster than calling Supabase for every request
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+
+const EXPECTED_AUDIENCE = `authenticated`;
+const EXPECTED_ISSUER = `${SUPABASE_URL}/auth/v1`;
+
+/**
+ * Hardened JWT verification options
+ * - Explicit algorithm restriction (prevent algorithm confusion attacks)
+ * - Issuer verification
+ * - Audience verification
+ * - Clock skew tolerance (60 seconds)
+ */
+const JWT_VERIFY_OPTIONS: jwt.VerifyOptions = {
+  algorithms: ['HS256'],
+  issuer: EXPECTED_ISSUER,
+  audience: EXPECTED_AUDIENCE,
+  clockTolerance: 60, // 60 second tolerance for clock skew
+  complete: false,
+};
+
+/**
+ * Extract and verify JWT token locally with full security checks.
+ * Falls back to Supabase verification if local verification fails or secret not configured.
+ */
 export const requireAuth = async (
   req: AuthRequest,
   res: Response,
@@ -22,6 +50,33 @@ export const requireAuth = async (
   const token = authHeader.split(' ')[1];
 
   try {
+    // Attempt local JWT verification first (faster, no network call)
+    if (SUPABASE_JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET, JWT_VERIFY_OPTIONS) as any;
+        
+        // Additional explicit validation beyond jwt.verify
+        const now = Math.floor(Date.now() / 1000);
+        
+        if (decoded.exp && decoded.exp < now - 60) {
+          throw new Error('Token expired');
+        }
+        if (decoded.nbf && decoded.nbf > now + 60) {
+          throw new Error('Token not yet valid');
+        }
+        if (!decoded.sub) {
+          throw new Error('Token missing subject claim');
+        }
+        
+        req.user = { id: decoded.sub, ...decoded };
+        return next();
+      } catch (jwtError: any) {
+        // Local verification failed - fall through to Supabase
+        console.log('[AuthMiddleware] Local JWT verify failed:', jwtError.message);
+      }
+    }
+
+    // Fallback: Verify with Supabase (makes network call)
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {

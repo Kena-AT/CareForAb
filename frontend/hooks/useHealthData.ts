@@ -320,9 +320,11 @@ export const useHealthData = () => {
           user_id: user.id,
           medication_id: medData.id,
           frequency: schedule.frequency,
+          treatment_type: schedule.treatment_type,
           times: schedule.times,
           start_date: schedule.start_date,
           end_date: schedule.end_date,
+          is_indefinite: schedule.is_indefinite,
           reminder_minutes_before: schedule.reminder_minutes_before || 15,
           is_active: true,
         })
@@ -333,7 +335,9 @@ export const useHealthData = () => {
 
       // Step 3: Generate today's logs if applicable
       const today = new Date().toISOString().split('T')[0];
-      if (schedule.start_date <= today && (!schedule.end_date || schedule.end_date >= today)) {
+      const isActiveToday = schedule.start_date <= today && (schedule.is_indefinite || !schedule.end_date || schedule.end_date >= today);
+      
+      if (isActiveToday) {
         // Create pending logs for each scheduled time today
         const logInserts = schedule.times.map(time => ({
           user_id: user.id,

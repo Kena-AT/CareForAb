@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 export const SessionWatcher = () => {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, loading } = useAuth();
+    const { loading } = useAuth();
 
     const handleTimeout = useCallback(() => {
         if (pathname !== '/') {
@@ -42,7 +42,9 @@ export const SessionWatcher = () => {
 
         // Check on initial mount (app boot)
         if (isSessionExpired()) {
-            if (pathname !== '/' && user) {
+            // Always redirect to / when session is expired, regardless of user state
+            if (pathname !== '/') {
+                clearSession();
                 handleTimeout();
             }
         } else {
@@ -52,13 +54,14 @@ export const SessionWatcher = () => {
 
         // Periodic check every 30 seconds
         const interval = setInterval(() => {
-            if (isSessionExpired() && pathname !== '/' && user) {
+            if (isSessionExpired() && pathname !== '/') {
+                clearSession();
                 handleTimeout();
             }
         }, 30000);
 
         return () => clearInterval(interval);
-    }, [loading, user, pathname, handleTimeout]);
+    }, [loading, pathname, handleTimeout]);
 
     return null;
 };
