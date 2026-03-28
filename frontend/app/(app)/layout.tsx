@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { useHealth } from "@/contexts/HealthContext";
@@ -24,9 +25,11 @@ const LoadingSkeleton = () => (
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showSettings, setShowSettings] = useState(false);
   const { isLoading } = useHealth();
+  const { initialized: authInitialized } = useAuth();
   const isMobile = useIsMobile();
 
-  if (isLoading) {
+  // Single gate: wait for both auth and health data
+  if (!authInitialized || isLoading) {
     return (
       <div className="flex min-h-screen bg-[#f6fafaff]">
         {!isMobile && <Sidebar />}

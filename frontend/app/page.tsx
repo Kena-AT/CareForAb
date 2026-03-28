@@ -10,13 +10,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export default function WelcomePage() {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
   const router = useRouter();
 
-  // Remove automatic redirection to allow logged-in users to see the redesigned Welcome page
-  // They can navigate to the dashboard manually via the navbar
+  // Debug: check if auth is undefined
+  if (!auth) {
+    return <div className="p-10 text-red-500">AuthContext not found</div>;
+  }
   
-  if (loading) {
+  const { user, loading, initialized } = auth;
+
+  // Block render until auth fully initialized (prevents flicker)
+  if (loading || !initialized) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
