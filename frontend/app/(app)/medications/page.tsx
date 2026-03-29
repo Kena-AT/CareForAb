@@ -11,6 +11,7 @@ export default function MedicationsPage() {
     addMedication, 
     deleteMedication,
     updateMedication,
+    isMedsLoading,
     refetch 
   } = useHealth();
 
@@ -18,6 +19,7 @@ export default function MedicationsPage() {
     <MedicationsScreen
       medications={medications}
       todaySchedule={todaySchedule}
+      isMedsLoading={isMedsLoading}
       onMarkMedicationTaken={markMedicationTaken}
       onAddMedication={addMedication}
       onUpdateMedication={updateMedication}

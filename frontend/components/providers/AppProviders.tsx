@@ -11,7 +11,16 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { initializeNotifications } from "@/services/notifications";
 import PageTransition from "@/components/layout/PageTransition";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 300000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+    },
+  },
+});
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   useEffect(() => {

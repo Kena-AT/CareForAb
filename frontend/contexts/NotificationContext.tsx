@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
+import { isNetworkError } from '@/lib/utils';
 
 export interface AppNotification {
   id: string;
@@ -44,7 +45,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (error) throw error;
       setNotifications(data || []);
     } catch (error) {
-      console.error('[NotificationContext] Error fetching notifications:', error);
+      if (!isNetworkError(error)) {
+        console.error('[NotificationContext] Error fetching notifications:', error);
+      }
     } finally {
       setIsLoading(false);
     }

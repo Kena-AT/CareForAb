@@ -12,6 +12,7 @@ import {
   clearSession
 } from '@/lib/session';
 import { useQueryClient } from '@tanstack/react-query';
+import { isNetworkError } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -39,6 +40,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const PUBLIC_ROUTES = ['/', '/auth'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  console.log("[AuthContext] render");
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -82,12 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // 6. Redirect to home if on protected route
     if (!PUBLIC_ROUTES.includes(pathname)) {
-      router.push('/');
+      router.replace('/');
     }
   }, [queryClient, router, pathname]);
 
-  // Fetch profile - auto-logout on failure
-  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+  // Fetch profile - auto-create on failure
+  const fetchProfile = useCallback(async (userId: string, userMetadata?: { full_name?: string; date_of_birth?: string }): Promise<Profile | null> => {
     setProfileLoading(true);
     try {
       const { data, error } = await supabase
@@ -97,6 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
       
       if (error) {
+        if (isNetworkError(error)) {
+          console.warn('[AuthContext] Profile fetch failed due to network connection. Keeping current session.');
+          return null;
+        }
         console.error('[AuthContext] Profile fetch error:', error);
         toast.error('Failed to load profile. Please sign in again.');
         await signOut();
@@ -104,14 +110,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (!data) {
-        console.error('[AuthContext] No profile found for user:', userId);
-        toast.error('Profile not found. Please sign in again.');
-        await signOut();
-        return null;
+        // Profile doesn't exist - create it on-demand
+        console.log('[AuthContext] Profile not found, creating for user:', userId);
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            full_name: userMetadata?.full_name || null,
+            date_of_birth: userMetadata?.date_of_birth || null,
+          })
+          .select('id, full_name, date_of_birth, created_at')
+          .single();
+        
+        if (createError) {
+          console.error('[AuthContext] Profile creation error:', createError);
+          toast.error('Failed to create profile. Please sign in again.');
+          await signOut();
+          return null;
+        }
+        
+        return newProfile;
       }
       
       return data;
     } catch (error) {
+      if (isNetworkError(error)) {
+        console.warn('[AuthContext] Unexpected profile fetch network error. Keeping current session.');
+        return null;
+      }
       console.error('[AuthContext] Unexpected profile fetch error:', error);
       toast.error('Authentication error. Please sign in again.');
       await signOut();
@@ -139,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let activityCleanup: (() => void) | null = null;
 
     const initAuth = async () => {
+      console.log("[AuthContext] initAuth started");
       // Check if session expired before restoring
       if (isSessionExpired()) {
         console.log('[AuthContext] Session expired on init, clearing state');
@@ -163,8 +190,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           updateLastActivity();
-          // Fetch profile - will auto-logout on failure
-          const profileData = await fetchProfile(session.user.id);
+          // Fetch profile - will auto-create if missing
+          const profileData = await fetchProfile(session.user.id, {
+            full_name: session.user.user_metadata?.full_name,
+            date_of_birth: session.user.user_metadata?.date_of_birth
+          });
           if (mounted) {
             setProfile(profileData);
           }
@@ -179,13 +209,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
+        console.log(`[AuthContext] onAuthStateChange: ${event}`);
+        
+        if (event === 'SIGNED_OUT') {
+           setSession(null);
+           setUser(null);
+           setProfile(null);
+           setLoading(false);
+           return;
+        }
+
+        if (event === 'TOKEN_REFRESHED') return;
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           updateLastActivity();
-          const profileData = await fetchProfile(session.user.id);
+          const profileData = await fetchProfile(session.user.id, {
+            full_name: session.user.user_metadata?.full_name,
+            date_of_birth: session.user.user_metadata?.date_of_birth
+          });
           if (mounted) {
             setProfile(profileData);
           }
@@ -242,7 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // If not authenticated and on protected route, redirect to home
     if (!user && !PUBLIC_ROUTES.includes(pathname)) {
-      router.push('/');
+      router.replace('/');
     }
   }, [initialized, loading, user, profile, profileLoading, pathname, router]);
 
@@ -336,6 +380,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return { error };
   };
+
+  if (!initialized || (user && !profile && loading)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+          <p className="text-sm font-medium text-slate-500 animate-pulse font-sans">Wait for it...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ 

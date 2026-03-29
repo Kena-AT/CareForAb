@@ -2,22 +2,26 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Plus, Pill, MoreVertical, Clock, CheckCircle2, AlertCircle, Sun, Moon, Sunset, RefreshCcw, PackageOpen, Filter, LayoutGrid, User, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, Pill, MoreVertical, Clock, CheckCircle2, AlertCircle, Sun, Moon, Sunset, RefreshCcw, PackageOpen, Filter, LayoutGrid, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
-import { AddMedicationModal } from '@/components/health/AddMedicationModal';
-import { InventoryModal } from '@/components/health/InventoryModal';
-import { RegisterRxModal } from '@/components/health/RegisterRxModal';
-import { DeleteConfirmationModal } from '@/components/health/DeleteConfirmationModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Medication, MedicationSchedule, TodayScheduleItem } from '@/types/health';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '@/contexts/NotificationContext';
+import dynamic from 'next/dynamic';
+import { MedicationSkeleton, InventorySkeleton } from '@/components/health/HealthSkeletons';
+
+const AddMedicationModal = dynamic(() => import('@/components/health/AddMedicationModal').then(m => m.AddMedicationModal), { ssr: false });
+const InventoryModal = dynamic(() => import('@/components/health/InventoryModal').then(m => m.InventoryModal), { ssr: false });
+const RegisterRxModal = dynamic(() => import('@/components/health/RegisterRxModal').then(m => m.RegisterRxModal), { ssr: false });
+const DeleteConfirmationModal = dynamic(() => import('@/components/health/DeleteConfirmationModal').then(m => m.DeleteConfirmationModal), { ssr: false });
 
 interface MedicationsScreenProps {
   medications: Medication[];
   todaySchedule: TodayScheduleItem[];
+  isMedsLoading?: boolean;
   onMarkMedicationTaken: (logId: string) => void;
   onAddMedication: (
     medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
@@ -64,6 +68,7 @@ const formatDate = (date: Date) =>
 export const MedicationsScreen = ({
   medications,
   todaySchedule,
+  isMedsLoading = false,
   onMarkMedicationTaken,
   onAddMedication,
   onUpdateMedication,
@@ -105,16 +110,27 @@ export const MedicationsScreen = ({
     med: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
     schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
   ) => {
-    const result = await onAddMedication(med, schedule);
-    if (result) {
-      setShowSuccessModal(med.name);
-      addNotification({
-        title: 'Medication Added',
-        message: `${med.name} has been added to your medication schedule.`,
-        type: 'success',
-      });
+    try {
+      const result = await onAddMedication(med, schedule);
+      
+      // Close whichever modal was open
       setShowAddModal(false);
-      setTimeout(() => setShowSuccessModal(null), 3000);
+      setShowRegisterRxModal(false);
+
+      if (result) {
+        setShowSuccessModal(med.name);
+        addNotification({
+          title: 'Medication Added',
+          message: `${med.name} has been added to your medication schedule.`,
+          type: 'success',
+        });
+        
+        // Auto-close success message after 3 seconds
+        setTimeout(() => setShowSuccessModal(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error in handleAddMedication flow:', error);
+      // Hook already handles the toast notification for the error
     }
   };
 
@@ -171,7 +187,13 @@ export const MedicationsScreen = ({
 
                 {/* Schedule Items */}
                 <div className="divide-y divide-slate-50">
-                  {todaySchedule.length === 0 ? (
+                  {(isMedsLoading && medications.length === 0) ? (
+                    <>
+                      <MedicationSkeleton />
+                      <MedicationSkeleton />
+                      <MedicationSkeleton />
+                    </>
+                  ) : todaySchedule.length === 0 ? (
                     <div className="p-12 text-center">
                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Pill size={28} className="text-slate-300" />
@@ -297,7 +319,13 @@ export const MedicationsScreen = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {medications.filter(m => m.is_active).map(med => {
+            {(isMedsLoading && medications.length === 0) ? (
+              <>
+                <InventorySkeleton />
+                <InventorySkeleton />
+                <InventorySkeleton />
+              </>
+            ) : medications.filter(m => m.is_active).map(med => {
               const isLowStock = med.inventory_count !== null &&
                 med.inventory_count !== undefined &&
                 med.refill_threshold !== null &&

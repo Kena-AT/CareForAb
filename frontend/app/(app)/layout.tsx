@@ -2,12 +2,15 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { useHealth } from "@/contexts/HealthContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { BottomNav } from "@/components/layout/BottomNav";
+import dynamic from "next/dynamic";
+
+const SettingsDialog = dynamic(() => import("@/components/settings/SettingsDialog").then(mod => mod.SettingsDialog), {
+  ssr: false
+});
 
 const LoadingSkeleton = () => (
   <div className="flex-1 p-8 space-y-8 bg-[#f6fafaff]">
@@ -23,21 +26,13 @@ const LoadingSkeleton = () => (
 );
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  console.log("[AppLayout] render");
   const [showSettings, setShowSettings] = useState(false);
-  const { isLoading } = useHealth();
   const { initialized: authInitialized } = useAuth();
   const isMobile = useIsMobile();
 
-  // Single gate: wait for both auth and health data
-  if (!authInitialized || isLoading) {
-    return (
-      <div className="flex min-h-screen bg-[#f6fafaff]">
-        {!isMobile && <Sidebar />}
-        <LoadingSkeleton />
-        {isMobile && <BottomNav />}
-      </div>
-    );
-  }
+  // Primary gate is handled by AuthProvider, this is a secondary fallback for layout stability
+  if (!authInitialized) return <LoadingSkeleton />;
 
   return (
     <div className="flex min-h-screen bg-[#f6fafaff] text-slate-900 font-sans">
@@ -45,7 +40,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 relative">
-          {children}
+          <Suspense fallback={<LoadingSkeleton />}>
+            {children}
+          </Suspense>
         </main>
       </div>
 

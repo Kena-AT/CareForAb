@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isNetworkError } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import {
@@ -37,66 +38,44 @@ export const useHealthData = () => {
     timezone?: string | null;
   } | null>(null);
   
+  const [isMedsLoading, setIsMedsLoading] = useState(true);
+  const [isReadingsLoading, setIsReadingsLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!user) {
       setIsLoading(false);
+      setIsMedsLoading(false);
+      setIsReadingsLoading(false);
+      setIsProfileLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    const start = performance.now();
+    console.log('[Performance] Starting health data fetch sequence...');
+
     try {
       // Use local date for "Today"
       const now = new Date();
       const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
-      // Fetch all data in parallel
-      const [
-        medsRes, 
-        schedulesRes,
-        logsRes, 
-        sugarRes, 
-        bpRes, 
-        oxygenRes, 
-        activityRes, 
-        profileRes
-      ] = await Promise.all([
-        // 1. Medications (templates - just drug info)
+      // --- PHASE 1: Critical Medication Data ---
+      if (medications.length === 0) setIsMedsLoading(true);
+      const [medsRes, schedulesRes, logsRes] = await Promise.all([
         supabase.from('medications').select('*').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
-        
-        // 2. Schedules (timing rules) - only active ones that could affect today
         (supabase.from('medication_schedules' as any) as any).select('*').eq('user_id', user.id).eq('is_active', true),
-        
-        // 3. Today's logs (what happened today)
         supabase.from('medication_logs').select('*').eq('user_id', user.id).eq('date', today),
-        
-        // 4. Other health data
-        supabase.from('blood_sugar_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('blood_pressure_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('oxygen_readings' as any).select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(20),
-        supabase.from('activity_readings' as any).select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
-        
-        // 5. Profile (with language column)
-        supabase.from('profiles').select('full_name, blood_type, avatar_url, language').eq('id', user.id).maybeSingle()
       ]);
 
-      // Handle errors
       if (medsRes.error) throw medsRes.error;
       if (schedulesRes.error) throw schedulesRes.error;
       if (logsRes.error) throw logsRes.error;
-      if (sugarRes.error) throw sugarRes.error;
-      if (bpRes.error) throw bpRes.error;
-      if (oxygenRes.error) throw oxygenRes.error;
-      if (activityRes.error) throw activityRes.error;
-      if (profileRes.error) throw profileRes.error;
 
-      // Update states
       setMedications(medsRes.data as Medication[] || []);
       setSchedules((schedulesRes.data as unknown as MedicationSchedule[]) || []);
       setMedicationLogs(logsRes.data as MedicationLog[] || []);
       
-      // Compute today's schedule from medications, schedules, and logs
       computeTodaySchedule(
         medsRes.data as Medication[] || [],
         schedulesRes.data as MedicationSchedule[] || [],
@@ -104,18 +83,51 @@ export const useHealthData = () => {
         today
       );
       
+      setIsMedsLoading(false);
+      console.log(`[Performance] Medication phase done in ${(performance.now() - start).toFixed(2)}ms`);
+
+      // --- PHASE 2: Profile & Other Health Data ---
+      if (bloodSugarReadings.length === 0) setIsReadingsLoading(true);
+      if (!profile) setIsProfileLoading(true);
+      
+      const [profileRes, sugarRes, bpRes, oxygenRes, activityRes] = await Promise.all([
+        supabase.from('profiles').select('full_name, blood_type, avatar_url, language').eq('id', user.id).maybeSingle(),
+        supabase.from('blood_sugar_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
+        supabase.from('blood_pressure_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
+        supabase.from('oxygen_readings' as any).select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(20),
+        supabase.from('activity_readings' as any).select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
+      ]);
+
+      if (profileRes.error) throw profileRes.error;
+      if (sugarRes.error) throw sugarRes.error;
+      if (bpRes.error) throw bpRes.error;
+      if (oxygenRes.error) throw oxygenRes.error;
+      if (activityRes.error) throw activityRes.error;
+
+      setProfile(profileRes.data as any);
+      setIsProfileLoading(false);
+
       setBloodSugarReadings(sugarRes.data as BloodSugarReading[] || []);
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
       setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
-      setProfile(profileRes.data as any);
+      setIsReadingsLoading(false);
+
+      console.log(`[Performance] Sequence complete in ${(performance.now() - start).toFixed(2)}ms`);
     } catch (error: any) {
-      console.error('Error fetching health data:', error?.message || error?.code || JSON.stringify(error) || 'Unknown error');
+      if (isNetworkError(error)) {
+        console.warn('[useHealthData] Network error fetching health data. Keeping current state.');
+        return;
+      }
+      console.error('Error fetching health data:', error?.message || 'Unknown error');
       toast.error(`Failed to load health data: ${error?.message || 'Unknown error'}`);
     } finally {
+      setIsMedsLoading(false);
+      setIsReadingsLoading(false);
+      setIsProfileLoading(false);
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, medications.length, bloodSugarReadings.length, profile]);
 
   // Initial data fetch
   useEffect(() => {
@@ -210,32 +222,6 @@ export const useHealthData = () => {
     }
   };
 
-  const createMedicationLog = async (medicationId: string, scheduledTime: string) => {
-    if (!user) return;
-
-    const now = new Date();
-    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-
-    try {
-      const { data, error } = await supabase
-        .from('medication_logs')
-        .insert({
-          user_id: user.id,
-          medication_id: medicationId,
-          scheduled_time: scheduledTime,
-          date: today,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      setMedicationLogs(prev => [...prev, data as MedicationLog]);
-    } catch (error: any) {
-      console.error('Error creating medication log:', error);
-      toast.error(`Log Error: ${error.message || 'Unknown error'}`);
-    }
-  };
 
   const addBloodSugarReading = async (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => {
     if (!user) return;
@@ -288,10 +274,6 @@ export const useHealthData = () => {
     }
   };
 
-  // ==========================================
-  // MEDICATION CREATION (Separated: Medication + Schedule)
-  // ==========================================
-
   const addMedication = async (
     medication: Omit<Medication, 'id' | 'created_at' | 'is_active' | 'user_id'>,
     schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
@@ -299,7 +281,9 @@ export const useHealthData = () => {
     if (!user) return;
 
     try {
-      // Step 1: Create medication (template - just drug info)
+      console.log('Adding medication for user:', user.id);
+      
+      // Step 1: Create medication (template - drug info + inventory)
       const { data: medData, error: medError } = await supabase
         .from('medications')
         .insert({
@@ -309,13 +293,20 @@ export const useHealthData = () => {
           notes: medication.notes,
           doctor: medication.doctor,
           prescription_number: medication.prescription_number,
+          inventory_count: medication.inventory_count,
+          refill_threshold: medication.refill_threshold,
           is_active: true,
-          frequency: 'custom', // Default value for legacy compatibility
+          frequency: 'custom',
         } as any)
         .select()
         .single();
 
-      if (medError) throw medError;
+      if (medError) {
+        console.error('Medication insert error:', medError);
+        throw medError;
+      }
+
+      console.log('Medication created:', medData.id);
 
       // Step 2: Create schedule (timing rules)
       const { data: scheduleData, error: scheduleError } = await (supabase
@@ -335,14 +326,18 @@ export const useHealthData = () => {
         .select()
         .single();
 
-      if (scheduleError) throw scheduleError;
+      if (scheduleError) {
+        console.error('Schedule insert error:', scheduleError);
+        throw scheduleError;
+      }
+
+      console.log('Schedule created:', scheduleData.id);
 
       // Step 3: Generate today's logs if applicable
       const today = new Date().toISOString().split('T')[0];
       const isActiveToday = schedule.start_date <= today && (schedule.is_indefinite || !schedule.end_date || schedule.end_date >= today);
       
       if (isActiveToday) {
-        // Create pending logs for each scheduled time today
         const logInserts = schedule.times.map(time => ({
           user_id: user.id,
           medication_id: medData.id,
@@ -357,20 +352,21 @@ export const useHealthData = () => {
 
         if (logsError) {
           console.error('Error creating initial logs:', logsError);
+          // Don't throw here as the main medication was already created
         }
       }
 
-      // Update local state
+      // Update local state immediately for responsiveness
       setMedications(prev => [medData as Medication, ...prev]);
       setSchedules(prev => [scheduleData as MedicationSchedule, ...prev]);
       
-      // Refresh data to get computed schedule
-      await fetchData();
+      // Refresh data in background to get computed schedule without blocking UI closing
+      fetchData().catch(err => console.error('Background refresh error:', err));
 
       toast.success('Medication created successfully!');
       return medData;
     } catch (error: any) {
-      console.error('Error adding medication:', error);
+      console.error('Error in addMedication sequence:', error);
       toast.error(`Error: ${error.message || 'Failed to create medication'}`);
       throw error;
     }
@@ -521,6 +517,9 @@ export const useHealthData = () => {
     activityReadings,
     
     // Loading state
+    isMedsLoading,
+    isReadingsLoading,
+    isProfileLoading,
     isLoading,
     
     // Actions

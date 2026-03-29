@@ -20,6 +20,8 @@ export default function DashboardPage() {
     calculateHealthScore,
     calculateAdherenceStreak,
     userName,
+    isMedsLoading,
+    isReadingsLoading,
   } = useHealth();
 
   return (
@@ -28,6 +30,8 @@ export default function DashboardPage() {
       medicationLogs={medicationLogs}
       bloodSugarReadings={bloodSugarReadings}
       bloodPressureReadings={bloodPressureReadings}
+      isMedsLoading={isMedsLoading}
+      isReadingsLoading={isReadingsLoading}
       onMarkMedicationTaken={markMedicationTaken}
       onAddBloodSugar={addBloodSugarReading as any}
       onAddBloodPressure={addBloodPressureReading as any}

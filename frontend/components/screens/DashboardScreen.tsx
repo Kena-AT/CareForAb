@@ -1,25 +1,29 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Droplets, Heart, Plus, ChevronRight, CheckCircle2, Clock, Calendar, Activity, TrendingUp, ClipboardList } from 'lucide-react';
-import Link from 'next/link';
+import { Droplets, Heart, ChevronRight, CheckCircle2, Activity, TrendingUp, ClipboardList } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { getTimeBasedGreeting } from '@/lib/greeting';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Header } from '@/components/layout/Header';
+import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading } from '@/types/health';
 import { MedicationCard } from '@/components/health/MedicationCard';
 import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCard';
-import { QuickAddModal } from '@/components/health/QuickAddModal';
-import { EditReadingModal } from '@/components/health/EditReadingModal';
-import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading } from '@/types/health';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import { VitalsSkeleton, MedCardSkeleton } from '@/components/health/HealthSkeletons';
+
+const QuickAddModal = dynamic(() => import('@/components/health/QuickAddModal').then(m => m.QuickAddModal), { ssr: false });
+const EditReadingModal = dynamic(() => import('@/components/health/EditReadingModal').then(m => m.EditReadingModal), { ssr: false });
 
 interface DashboardScreenProps {
   medications: Medication[];
   medicationLogs: MedicationLog[];
   bloodSugarReadings: BloodSugarReading[];
   bloodPressureReadings: BloodPressureReading[];
+  isMedsLoading?: boolean;
+  isReadingsLoading?: boolean;
   onMarkMedicationTaken: (logId: string) => void;
   onAddBloodSugar: (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => void;
   onAddBloodPressure: (reading: Omit<BloodPressureReading, 'id' | 'recorded_at'>) => void;
@@ -38,11 +42,14 @@ interface DashboardScreenProps {
   userName?: string | null;
 }
 
+
 export const DashboardScreen = ({
   medications,
   medicationLogs,
   bloodSugarReadings,
   bloodPressureReadings,
+  isMedsLoading = false,
+  isReadingsLoading = false,
   onMarkMedicationTaken,
   onAddBloodSugar,
   onAddBloodPressure,
@@ -130,47 +137,61 @@ export const DashboardScreen = ({
 
         {/* Section - Vitals Grid (Asymmetric) (Node pGk07) */}
         <motion.section variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 h-auto lg:h-[192px]">
-           {/* Vitals Card: Heart Rate (Node m1xXk) */}
-           <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
-              <div className="flex items-start justify-between">
-                 <div className="p-3 rounded-2xl bg-red-50 text-red-500 group-hover:scale-110 transition-transform">
-                    <Heart size={24} />
-                 </div>
-                 <TrendingUp size={16} className="text-success opacity-50" />
-              </div>
-              <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{pulse ?? '--'}</p>
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Heart Rate (Avg)</p>
-              </div>
-           </Card>
+           {(isReadingsLoading && bloodSugarReadings.length === 0 && bloodPressureReadings.length === 0) ? (
+             <>
+               <VitalsSkeleton />
+               <VitalsSkeleton />
+               <VitalsSkeleton />
+             </>
+           ) : (
+             <>
+               {/* Vitals Card: Heart Rate (Node m1xXk) */}
+               <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
+                  <div className="flex items-start justify-between">
+                     <div className="p-3 rounded-2xl bg-red-50 text-red-500 group-hover:scale-110 transition-transform">
+                        <Heart size={24} />
+                     </div>
+                     <TrendingUp size={16} className="text-success opacity-50" />
+                  </div>
+                  <div>
+                     <p className="text-3xl font-black text-slate-900 leading-none">{pulse ?? '--'}</p>
+                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Heart Rate (Avg)</p>
+                  </div>
+               </Card>
+             </>
+           )}
 
            {/* Vitals Card: Blood Oxygen (Node B7ANj) */}
-           <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
-              <div className="flex items-start justify-between">
-                 <div className="p-3 rounded-2xl bg-info/10 text-info group-hover:scale-110 transition-transform">
-                    <Droplets size={24} />
-                 </div>
-                 <CheckCircle2 size={16} className="text-success opacity-50" />
-              </div>
-              <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{oxygen !== null && oxygen !== undefined ? `${oxygen}%` : '--'}</p>
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Blood Oxygen</p>
-              </div>
-           </Card>
+           {!isReadingsLoading && (
+             <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
+                <div className="flex items-start justify-between">
+                   <div className="p-3 rounded-2xl bg-info/10 text-info group-hover:scale-110 transition-transform">
+                      <Droplets size={24} />
+                   </div>
+                   <CheckCircle2 size={16} className="text-success opacity-50" />
+                </div>
+                <div>
+                   <p className="text-3xl font-black text-slate-900 leading-none">{oxygen !== null && oxygen !== undefined ? `${oxygen}%` : '--'}</p>
+                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Blood Oxygen</p>
+                </div>
+             </Card>
+           )}
 
            {/* Vitals Card: Activity/Steps */}
-           <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
-              <div className="flex items-start justify-between">
-                 <div className="p-3 rounded-2xl bg-orange-50 text-orange-500 group-hover:scale-110 transition-transform">
-                    <Activity size={24} />
-                 </div>
-                 <TrendingUp size={16} className="text-success opacity-50" />
-              </div>
-              <div>
-                 <p className="text-3xl font-black text-slate-900 leading-none">{steps !== null && steps !== undefined ? steps.toLocaleString() : '--'}</p>
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Active Steps</p>
-              </div>
-           </Card>
+           {!isReadingsLoading && (
+             <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
+                <div className="flex items-start justify-between">
+                   <div className="p-3 rounded-2xl bg-orange-50 text-orange-500 group-hover:scale-110 transition-transform">
+                      <Activity size={24} />
+                   </div>
+                   <TrendingUp size={16} className="text-success opacity-50" />
+                </div>
+                <div>
+                   <p className="text-3xl font-black text-slate-900 leading-none">{steps !== null && steps !== undefined ? steps.toLocaleString() : '--'}</p>
+                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Active Steps</p>
+                </div>
+             </Card>
+           )}
 
            {/* Medication Summary Bento (Node xeIj5) */}
            <Card className="lg:col-span-2 border-none bg-[#006672ff] shadow-xl shadow-[#00667233] rounded-[20px] p-8 text-white relative overflow-hidden group hover:shadow-2xl transition-all">
@@ -212,8 +233,14 @@ export const DashboardScreen = ({
                  </div>
               </div>
 
-              <div className="space-y-4">
-                {pendingMeds.length > 0 ? (
+               <div className="space-y-4">
+                {(isMedsLoading && medications.length === 0) ? (
+                  <>
+                    <MedCardSkeleton />
+                    <MedCardSkeleton />
+                    <MedCardSkeleton />
+                  </>
+                ) : pendingMeds.length > 0 ? (
                   pendingMeds.slice(0, 3).map((log) => {
                     const medication = medications.find(m => m.id === log.medication_id);
                     if (!medication) return null;

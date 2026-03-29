@@ -30,7 +30,8 @@ export const InsightsScreen = () => {
     bloodPressureReadings, 
     medicationLogs,
     calculateGlucoseStability,
-    calculateAdherenceRate
+    calculateAdherenceRate,
+    isLoading: isHealthLoading
   } = useHealth();
 
   const [timeframe, setTimeframe] = useState<7 | 14 | 30>(7);
