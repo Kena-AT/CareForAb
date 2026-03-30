@@ -126,46 +126,113 @@ export const SettingsScreen = () => {
 
   const handleTestDbConnection = async () => {
     setIsTestingDb(true);
+    const results: string[] = [];
+    
+    // Test 0: Basic network connectivity
+    console.log('[DB Test 0] Testing network...');
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-      
-      if (!userId) {
-        toast.error('No authenticated user found');
-        return;
-      }
-      
-      console.log('[DB Test] User ID:', userId);
-      
-      // Test insert
-      const { data, error } = await supabase
-        .from('blood_sugar_readings')
-        .insert({
-          user_id: userId,
-          value: 100,
-          unit: 'mg/dL',
-          meal_type: 'fasting',
-          recorded_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('[DB Test] Insert error:', error);
-        toast.error(`DB Error: ${error.message} (Code: ${error.code})`);
-      } else {
-        console.log('[DB Test] Success:', data);
-        toast.success('Test reading saved! Check console.');
-        // Clean up test data
-        await supabase.from('blood_sugar_readings').delete().eq('id', data.id);
-      }
-    } catch (err: any) {
-      console.error('[DB Test] Exception:', err);
-      toast.error(`Exception: ${err?.message || 'Unknown'}`);
-    } finally {
+      const pingStart = Date.now();
+      const pingRes = await fetch('https://www.google.com/favicon.ico', { 
+        method: 'HEAD',
+        mode: 'no-cors'
+      });
+      results.push(`Network: OK (${Date.now() - pingStart}ms)`);
+    } catch (e) {
+      results.push('Network: FAILED - Check internet connection');
+      console.error('[DB Test 0] Network failed:', e);
+      toast.error(results.join(' | '), { duration: 10000 });
       setIsTestingDb(false);
+      return;
     }
+    
+    // Test 1: Check auth
+    console.log('[DB Test 1] Getting auth user...');
+    const authPromise = supabase.auth.getUser();
+    const authTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('timeout')), 5000)
+    );
+    
+    try {
+      const { data: userData, error: authError } = await Promise.race([authPromise, authTimeout]) as any;
+      if (authError) {
+        console.error('[DB Test 1] Auth error:', authError);
+        results.push(`Auth: ${authError.message}`);
+      } else if (!userData.user) {
+        results.push('Auth: No user logged in');
+      } else {
+        console.log('[DB Test 1] Auth OK, user:', userData.user.id);
+        results.push(`Auth: OK`);
+        
+        // Test 2: Try simple SELECT (reads are usually allowed)
+        console.log('[DB Test 2] Testing SELECT...');
+        const selectPromise = supabase
+          .from('blood_sugar_readings')
+          .select('id')
+          .limit(1);
+        
+        const selectTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 5000)
+        );
+        
+        try {
+          const { error: selectError } = await Promise.race([selectPromise, selectTimeout]) as any;
+          if (selectError) {
+            console.error('[DB Test 2] SELECT error:', selectError);
+            results.push(`SELECT: ${selectError.code}`);
+          } else {
+            console.log('[DB Test 2] SELECT OK');
+            results.push('SELECT: OK');
+          }
+        } catch (e: any) {
+          results.push('SELECT: TIMEOUT');
+        }
+        
+        // Test 3: Try INSERT with 5s timeout
+        console.log('[DB Test 3] Testing INSERT...');
+        const testId = crypto.randomUUID();
+        const insertPromise = supabase
+          .from('blood_sugar_readings')
+          .insert({
+            id: testId,
+            user_id: userData.user.id,
+            value: 100,
+            unit: 'mg/dL',
+            meal_type: 'fasting',
+            recorded_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        const insertTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('INSERT timeout')), 5000)
+        );
+        
+        try {
+          const { error: insertError } = await Promise.race([insertPromise, insertTimeout]) as any;
+          if (insertError) {
+            console.error('[DB Test 3] INSERT error:', insertError);
+            results.push(`INSERT: ${insertError.code}`);
+          } else {
+            console.log('[DB Test 3] INSERT OK');
+            results.push('INSERT: OK');
+            await supabase.from('blood_sugar_readings').delete().eq('id', testId);
+          }
+        } catch (e: any) {
+          console.error('[DB Test 3] INSERT timeout');
+          results.push('INSERT: TIMEOUT (RLS?)');
+        }
+      }
+    } catch (e: any) {
+      console.error('[DB Test 1] Auth timeout');
+      results.push('Auth: TIMEOUT');
+    }
+    
+    console.log('[DB Test Results]:', results.join(' | '));
+    toast.info(results.join(' | '), { duration: 15000 });
+    setIsTestingDb(false);
   };
+
+  const handleRunDiagnostic = async () => {
     playNotificationSound();
     toast.success('Signal Diagnostic: Sound Playback Successful');
     await sendTestNotification();
@@ -288,6 +355,15 @@ export const SettingsScreen = () => {
             >
               <Volume2 size={16} />
               Run System Signal & Audio Diagnostic
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleTestDbConnection}
+              disabled={isTestingDb}
+              className="w-full rounded-2xl h-14 text-slate-400 font-bold text-xs hover:text-red-600 transition-colors border-dashed border-2 border-red-100 flex gap-2 items-center justify-center"
+            >
+              {isTestingDb ? 'Testing DB...' : 'Test DB Connection (Debug)'}
             </Button>
           </div>
         </Section>
