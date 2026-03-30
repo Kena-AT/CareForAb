@@ -41,11 +41,21 @@ const PUBLIC_ROUTES = ['/', '/auth'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   console.log("[AuthContext] render");
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
+  const [authState, setAuthState] = useState<{
+    user: User | null;
+    session: Session | null;
+    profile: Profile | null;
+    loading: boolean;
+    initialized: boolean;
+  }>({
+    user: null,
+    session: null,
+    profile: null,
+    loading: true,
+    initialized: false,
+  });
+  
+  const { user, session, profile, loading, initialized } = authState;
   const [profileLoading, setProfileLoading] = useState(false);
   
   const router = useRouter();
@@ -62,9 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // 2. Clear local state after Supabase
     clearSession();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
+    setAuthState({
+      user: null,
+      session: null,
+      profile: null,
+      loading: false,
+      initialized: true,
+    });
     
     // 3. Remove only auth-scoped queries (not public data)
     queryClient.removeQueries({ 
@@ -172,11 +186,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearSession();
         await supabase.auth.signOut();
         if (mounted) {
-          setUser(null);
-          setSession(null);
-          setProfile(null);
-          setLoading(false);
-          setInitialized(true);
+          setAuthState({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            initialized: true,
+          });
         }
         return;
       }
@@ -185,23 +201,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session } } = await supabase.auth.getSession();
       
       if (mounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
+        const user = session?.user ?? null;
         
-        if (session?.user) {
+        if (user) {
           updateLastActivity();
           // Fetch profile - will auto-create if missing
-          const profileData = await fetchProfile(session.user.id, {
+          const profileData = await fetchProfile(user.id, {
             full_name: session.user.user_metadata?.full_name,
             date_of_birth: session.user.user_metadata?.date_of_birth
           });
           if (mounted) {
-            setProfile(profileData);
+            setAuthState({
+              user,
+              session,
+              profile: profileData,
+              loading: false,
+              initialized: true,
+            });
           }
+        } else {
+          setAuthState({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            initialized: true,
+          });
         }
-        
-        setLoading(false);
-        setInitialized(true);
       }
     };
 
@@ -212,32 +238,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`[AuthContext] onAuthStateChange: ${event}`);
         
         if (event === 'SIGNED_OUT') {
-           setSession(null);
-           setUser(null);
-           setProfile(null);
-           setLoading(false);
+           setAuthState({
+             user: null,
+             session: null,
+             profile: null,
+             loading: false,
+             initialized: true,
+           });
            return;
         }
 
         if (event === 'TOKEN_REFRESHED') return;
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        const user = session?.user ?? null;
         
-        if (session?.user) {
+        if (user) {
           updateLastActivity();
-          const profileData = await fetchProfile(session.user.id, {
+          const profileData = await fetchProfile(user.id, {
             full_name: session.user.user_metadata?.full_name,
             date_of_birth: session.user.user_metadata?.date_of_birth
           });
           if (mounted) {
-            setProfile(profileData);
+            setAuthState({
+              user,
+              session,
+              profile: profileData,
+              loading: false,
+              initialized: true,
+            });
           }
         } else {
-          setProfile(null);
+          setAuthState({
+            user: null,
+            session,
+            profile: null,
+            loading: false,
+            initialized: true,
+          });
         }
-        
-        setLoading(false);
       }
     );
 
@@ -306,7 +344,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authError) throw authError;
 
       // Call backend to send verification code via Brevo
-      const response = await fetch('http://localhost:3001/api/auth/send-code', {
+      const response = await fetch('http://localhost:30001/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, fullName, dateOfBirth }),
@@ -325,7 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyOtp = async (email: string, code: string) => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-code', {
+      const response = await fetch('http://localhost:30001/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -351,7 +389,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendOtp = async (email: string, fullName: string) => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/send-code', {
+      const response = await fetch('http://localhost:30001/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, fullName }),

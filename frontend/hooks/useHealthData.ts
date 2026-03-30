@@ -44,7 +44,8 @@ export const useHealthData = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!user) {
+    console.log("useHealthData RUN - fetchData called");
+    if (!user?.id) {
       setIsLoading(false);
       setIsMedsLoading(false);
       setIsReadingsLoading(false);
@@ -61,7 +62,7 @@ export const useHealthData = () => {
       const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
       // --- PHASE 1: Critical Medication Data ---
-      if (medications.length === 0) setIsMedsLoading(true);
+      setIsMedsLoading(true);
       const [medsRes, schedulesRes, logsRes] = await Promise.all([
         supabase.from('medications').select('*').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
         (supabase.from('medication_schedules' as any) as any).select('*').eq('user_id', user.id).eq('is_active', true),
@@ -87,8 +88,8 @@ export const useHealthData = () => {
       console.log(`[Performance] Medication phase done in ${(performance.now() - start).toFixed(2)}ms`);
 
       // --- PHASE 2: Profile & Other Health Data ---
-      if (bloodSugarReadings.length === 0) setIsReadingsLoading(true);
-      if (!profile) setIsProfileLoading(true);
+      setIsReadingsLoading(true);
+      setIsProfileLoading(true);
       
       const [profileRes, sugarRes, bpRes, oxygenRes, activityRes] = await Promise.all([
         supabase.from('profiles').select('full_name, blood_type, avatar_url, language').eq('id', user.id).maybeSingle(),
@@ -127,11 +128,22 @@ export const useHealthData = () => {
       setIsProfileLoading(false);
       setIsLoading(false);
     }
-  }, [user, medications.length, bloodSugarReadings.length, profile]);
+  }, [user?.id]);
 
-  // Initial data fetch
+  // Initial data fetch - only when user ID changes
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (!isMounted) return;
+      await fetchData();
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [fetchData]);
 
   // Compute today's schedule from medications, schedules, and logs
