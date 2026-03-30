@@ -1,28 +1,29 @@
 "use client";
 
 import { DashboardScreen } from "@/components/screens/DashboardScreen";
-import { useHealth } from "@/contexts/HealthContext";
+import { useHealthData } from "@/hooks/useHealthData";
 import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const {
-    medications,
-    medicationLogs,
-    bloodSugarReadings,
-    bloodPressureReadings,
-    markMedicationTaken,
-    addBloodSugarReading,
-    addBloodPressureReading,
-    getLatestPulse,
-    getLatestOxygen,
-    getTodaySteps,
-    calculateHealthScore,
-    calculateAdherenceStreak,
-    userName,
-    isMedsLoading,
-    isReadingsLoading,
-  } = useHealth();
+  const { 
+    medications, 
+    medicationLogs, 
+    bloodSugarReadings, 
+    bloodPressureReadings, 
+    markMedicationTaken, 
+    addBloodSugarReading, 
+    addBloodPressureReading, 
+    getLatestPulse, 
+    getLatestOxygen, 
+    getTodaySteps, 
+    calculateHealthScore, 
+    calculateAdherenceStreak, 
+    userName, 
+    isMedsLoading, 
+    isReadingsLoading, 
+    refetch 
+  } = useHealthData();
 
   return (
     <DashboardScreen

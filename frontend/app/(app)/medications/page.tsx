@@ -1,7 +1,7 @@
 "use client";
 
 import { MedicationsScreen } from "@/components/screens/MedicationsScreen";
-import { useHealth } from "@/contexts/HealthContext";
+import { useHealthData } from "@/hooks/useHealthData";
 
 export default function MedicationsPage() {
   const { 
@@ -13,7 +13,7 @@ export default function MedicationsPage() {
     updateMedication,
     isMedsLoading,
     refetch 
-  } = useHealth();
+  } = useHealthData();
 
   return (
     <MedicationsScreen

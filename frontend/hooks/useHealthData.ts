@@ -236,9 +236,13 @@ export const useHealthData = () => {
 
 
   const addBloodSugarReading = async (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => {
-    if (!user) return;
+    if (!user) {
+      console.error('[addBloodSugarReading] No user found');
+      return;
+    }
 
     try {
+      console.log('[addBloodSugarReading] Inserting reading:', { userId: user.id, value: reading.value, meal_type: reading.meal_type });
       const { data, error } = await supabase
         .from('blood_sugar_readings')
         .insert({
@@ -252,12 +256,17 @@ export const useHealthData = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[addBloodSugarReading] Supabase error:', error);
+        throw error;
+      }
+      console.log('[addBloodSugarReading] Success:', data);
       setBloodSugarReadings(prev => [data as BloodSugarReading, ...prev]);
       toast.success('Blood sugar reading saved!');
     } catch (error: any) {
-      console.error('Error adding blood sugar reading:', error);
-      toast.error('Failed to save reading');
+      console.error('[addBloodSugarReading] Catch error:', error);
+      console.error('[addBloodSugarReading] Error details:', error?.message, error?.code, error?.details);
+      toast.error(`Failed to save reading: ${error?.message || 'Unknown error'}`);
     }
   };
 

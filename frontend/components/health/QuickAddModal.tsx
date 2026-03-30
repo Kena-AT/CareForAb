@@ -118,9 +118,9 @@ export const QuickAddModal = ({
                     <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Meal Type</Label>
                     <Select value={mealType} onValueChange={(v) => setMealType(v as BloodSugarReading['meal_type'])}>
                       <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold text-slate-700">
-                        <SelectValue />
+                        <SelectValue placeholder="Select meal type..." />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                      <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
                         <SelectItem value="fasting" className="font-bold py-3">🌅 Fasting (Morning)</SelectItem>
                         <SelectItem value="breakfast" className="font-bold py-3">🍳 Breakfast</SelectItem>
                         <SelectItem value="lunch" className="font-bold py-3">🥗 Lunch</SelectItem>

@@ -66,7 +66,7 @@ export const BloodSugarCard = ({
             <p className={cn(
               "text-muted-foreground",
               compact ? "text-xs" : "text-label"
-            )}>Blood Sugar</p>
+            )}>Glucose Level</p>
             <div className="flex items-baseline gap-2">
               <span className={cn(
                 "font-semibold",

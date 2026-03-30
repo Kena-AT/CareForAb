@@ -1,5 +1,4 @@
 "use client";
-console.log('CLICKED SAVE');
 
 import { useState, useEffect, useCallback } from 'react';
 import { 
@@ -123,7 +122,50 @@ export const SettingsScreen = () => {
     }
   };
 
-  const handleRunDiagnostic = async () => {
+  const [isTestingDb, setIsTestingDb] = useState(false);
+
+  const handleTestDbConnection = async () => {
+    setIsTestingDb(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      
+      if (!userId) {
+        toast.error('No authenticated user found');
+        return;
+      }
+      
+      console.log('[DB Test] User ID:', userId);
+      
+      // Test insert
+      const { data, error } = await supabase
+        .from('blood_sugar_readings')
+        .insert({
+          user_id: userId,
+          value: 100,
+          unit: 'mg/dL',
+          meal_type: 'fasting',
+          recorded_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('[DB Test] Insert error:', error);
+        toast.error(`DB Error: ${error.message} (Code: ${error.code})`);
+      } else {
+        console.log('[DB Test] Success:', data);
+        toast.success('Test reading saved! Check console.');
+        // Clean up test data
+        await supabase.from('blood_sugar_readings').delete().eq('id', data.id);
+      }
+    } catch (err: any) {
+      console.error('[DB Test] Exception:', err);
+      toast.error(`Exception: ${err?.message || 'Unknown'}`);
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
     playNotificationSound();
     toast.success('Signal Diagnostic: Sound Playback Successful');
     await sendTestNotification();
