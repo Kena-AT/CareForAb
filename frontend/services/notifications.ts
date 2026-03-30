@@ -211,40 +211,62 @@ export const cancelMedicationReminder = async (reminderId: number) => {
 
 export const cancelAllReminders = async () => {
   if (!Capacitor.isNativePlatform()) {
+    console.log('[Notification Service] Not native platform, skipping cancelAllReminders');
     return;
   }
 
   try {
-    const pending = await LocalNotifications.getPending();
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout getting pending notifications')), 5000)
+    );
+    
+    const pending = await Promise.race([
+      LocalNotifications.getPending(),
+      timeoutPromise
+    ]) as { notifications: Array<{ id: number }> };
+    
     if (pending.notifications.length > 0) {
       await LocalNotifications.cancel({
         notifications: pending.notifications.map(n => ({ id: n.id }))
       });
     }
-    console.log('Cancelled all reminders');
+    console.log('[Notification Service] Cancelled all reminders');
   } catch (error) {
-    console.error('Error cancelling all notifications:', error);
+    console.error('[Notification Service] Error cancelling all notifications:', error);
+    throw error; // Re-throw so caller can handle
   }
 };
 
 export const scheduleAllMedicationReminders = async (
   medications: Array<{ id: string; name: string; dosage: string; times: string[] }>
 ) => {
-  // Cancel existing reminders first
-  await cancelAllReminders();
-
-  // Schedule new reminders
-  let reminderIdCounter = 1;
-  console.log(`[Notification Service] Starting to schedule ${medications.length} medications...`);
-  for (const medication of medications) {
-    for (const time of medication.times) {
-      await scheduleMedicationReminder({
-        id: reminderIdCounter++,
-        medicationName: medication.name,
-        dosage: medication.dosage,
-        time
-      });
-    }
+  if (!Capacitor.isNativePlatform()) {
+    console.log('[Notification Service] Not native platform, skipping scheduleAllMedicationReminders');
+    return;
   }
-  console.log('[Notification Service] Finished scheduling all reminders');
+
+  try {
+    // Cancel existing reminders first
+    await cancelAllReminders();
+
+    // Schedule new reminders
+    let reminderIdCounter = 1;
+    console.log(`[Notification Service] Starting to schedule ${medications.length} medications...`);
+    
+    for (const medication of medications) {
+      for (const time of medication.times) {
+        await scheduleMedicationReminder({
+          id: reminderIdCounter++,
+          medicationName: medication.name,
+          dosage: medication.dosage,
+          time
+        });
+      }
+    }
+    console.log('[Notification Service] Finished scheduling all reminders');
+  } catch (error) {
+    console.error('[Notification Service] Error scheduling reminders:', error);
+    throw error; // Re-throw so caller can handle
+  }
 };

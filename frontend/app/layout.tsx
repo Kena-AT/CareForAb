@@ -6,8 +6,6 @@ import { AppProviders } from "@/components/providers/AppProviders";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "CareforAb | Your Personal Health Journal",
   description: "Monitor your health, track medications, and manage your well-being with ease.",

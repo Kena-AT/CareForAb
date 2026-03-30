@@ -36,7 +36,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
 
-  const { medications } = useHealthData();
+  const { medications, schedules } = useHealthData();
 
   const [notifications, setNotifications] = useState<NotificationSettings>(() => {
     if (typeof window === 'undefined') {
@@ -50,6 +50,8 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
       emailNotifications: false,
     };
   });
+  
+  const [isTogglingReminders, setIsTogglingReminders] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('notification-settings', JSON.stringify(notifications));
@@ -92,14 +94,37 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
           <Switch
             id="med-reminders"
             checked={notifications.medicationReminders}
+            disabled={isTogglingReminders}
             onCheckedChange={async (checked) => {
-              setNotifications(prev => ({ ...prev, medicationReminders: checked }));
-              if (checked) {
-                await scheduleAllMedicationReminders(medications);
-                toast.success('Medication reminders enabled');
-              } else {
-                await cancelAllReminders();
-                toast.success('Medication reminders disabled');
+              setIsTogglingReminders(true);
+              try {
+                setNotifications(prev => ({ ...prev, medicationReminders: checked }));
+                if (checked) {
+                  // Transform medications + schedules into reminder format
+                  const medicationReminders = medications.map(med => {
+                    const medSchedules = schedules.filter(s => s.medication_id === med.id);
+                    const allTimes = medSchedules.flatMap(s => s.times || []);
+                    return {
+                      id: med.id,
+                      name: med.name,
+                      dosage: med.dosage,
+                      times: allTimes.length > 0 ? allTimes : ['08:00'] // fallback time
+                    };
+                  }).filter(m => m.times.length > 0);
+                  
+                  await scheduleAllMedicationReminders(medicationReminders);
+                  toast.success('Medication reminders enabled');
+                } else {
+                  await cancelAllReminders();
+                  toast.success('Medication reminders disabled');
+                }
+              } catch (error: any) {
+                console.error('Error toggling medication reminders:', error);
+                toast.error(error?.message || 'Failed to update reminders. Please try again.');
+                // Revert the toggle on error
+                setNotifications(prev => ({ ...prev, medicationReminders: !checked }));
+              } finally {
+                setIsTogglingReminders(false);
               }
             }}
           />

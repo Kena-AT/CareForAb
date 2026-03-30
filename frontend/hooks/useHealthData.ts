@@ -64,9 +64,9 @@ export const useHealthData = () => {
       // --- PHASE 1: Critical Medication Data ---
       setIsMedsLoading(true);
       const [medsRes, schedulesRes, logsRes] = await Promise.all([
-        supabase.from('medications').select('*').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
-        (supabase.from('medication_schedules' as any) as any).select('*').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('medication_logs').select('*').eq('user_id', user.id).eq('date', today),
+        supabase.from('medications').select('id,name,dosage,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
+        (supabase.from('medication_schedules' as any) as any).select('id,medication_id,frequency,times,start_date,end_date,is_indefinite,is_active').eq('user_id', user.id).eq('is_active', true),
+        supabase.from('medication_logs').select('id,medication_id,scheduled_time,status,taken_at,date').eq('user_id', user.id).eq('date', today),
       ]);
 
       if (medsRes.error) throw medsRes.error;

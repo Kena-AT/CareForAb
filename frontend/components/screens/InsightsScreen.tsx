@@ -6,7 +6,7 @@ import { Activity, TrendingUp, TrendingDown, Target, Zap, Heart, Droplets, Calen
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
-import { useHealth } from '@/contexts/HealthContext';
+import { useHealthData } from '@/hooks/useHealthData';
 import { analyzeHealthPatterns, HealthDataSnapshot } from '@/services/gemini';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -32,7 +32,7 @@ export const InsightsScreen = () => {
     calculateGlucoseStability,
     calculateAdherenceRate,
     isLoading: isHealthLoading
-  } = useHealth();
+  } = useHealthData();
 
   const [timeframe, setTimeframe] = useState<7 | 14 | 30>(7);
   const [aiInsight, setAiInsight] = useState<{

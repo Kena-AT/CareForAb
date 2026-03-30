@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent } from '@/components/ui/card';
-import { useHealth } from '@/contexts/HealthContext';
+import { useHealthData } from '@/hooks/useHealthData';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
 import { analyzeBloodPressure } from '@/services/gemini';
 import {
@@ -36,7 +36,7 @@ export const VitalsScreen = () => {
     oxygenReadings,
     addBloodSugarReading,
     addBloodPressureReading
-  } = useHealth();
+  } = useHealthData();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'blood_sugar' | 'blood_pressure'>('blood_sugar');

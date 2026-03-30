@@ -39,11 +39,21 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await onUpdate(medication.id, {
+      // Add 5-second timeout to prevent hanging
+      const updatePromise = onUpdate(medication.id, {
         inventory_count: inventoryCount === '' ? null : inventoryCount,
         refill_threshold: refillThreshold === '' ? null : refillThreshold,
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Update timed out')), 5000)
+      );
+      
+      await Promise.race([updatePromise, timeoutPromise]);
       onClose();
+    } catch (error: any) {
+      console.error('[InventoryModal] Update error:', error);
+      alert(error?.message || 'Failed to update inventory. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

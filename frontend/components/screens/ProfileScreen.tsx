@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useHealth } from '@/contexts/HealthContext';
+import { useHealthData } from '@/hooks/useHealthData';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToPDF, exportToCSV } from '@/services/exportService';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
@@ -45,7 +45,7 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
-  const { medications, bloodSugarReadings, bloodPressureReadings, medicationLogs } = useHealth();
+  const { profile: healthProfile, medications, calculateAdherenceRate, calculateHealthScore, isLoading: isHealthLoading } = useHealthData();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);

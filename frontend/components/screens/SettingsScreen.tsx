@@ -1,4 +1,5 @@
 "use client";
+console.log('CLICKED SAVE');
 
 import { useState, useEffect, useCallback } from 'react';
 import { 
@@ -74,10 +75,17 @@ export const SettingsScreen = () => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('Not authenticated');
+      return;
+    }
+    
+    console.log('[Settings] Starting save...', { userId: user.id });
     setIsSaving(true);
+    
     try {
-      const { error } = await supabase
+      // Add timeout to prevent infinite hanging
+      const savePromise = supabase
         .from('profiles')
         .update({
           language: language,
@@ -85,9 +93,19 @@ export const SettingsScreen = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
-
-      if (error) throw error;
       
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Save timed out - Supabase not responding')), 5000)
+      );
+      
+      const { error } = await Promise.race([savePromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error('[Settings] Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('[Settings] Save successful');
       setIsDirty(false);
       toast.success('Settings saved to cloud');
       
@@ -97,8 +115,10 @@ export const SettingsScreen = () => {
         type: 'success'
       });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save settings');
+      console.error('[Settings] Save error:', error);
+      toast.error(error.message || 'Failed to save settings - check console');
     } finally {
+      console.log('[Settings] Save complete, resetting isSaving');
       setIsSaving(false);
     }
   };
