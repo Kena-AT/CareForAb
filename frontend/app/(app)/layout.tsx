@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useState, Suspense } from "react";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { HealthProvider } from "@/contexts/HealthContext";
 import dynamic from "next/dynamic";
 
 const SettingsDialog = dynamic(() => import("@/components/settings/SettingsDialog").then(mod => mod.SettingsDialog), {
@@ -35,19 +36,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!authInitialized) return <LoadingSkeleton />;
 
   return (
-    <div className="flex min-h-screen bg-[#f6fafaff] text-slate-900 font-sans">
-      {!isMobile && <Sidebar />}
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 relative">
-          <Suspense fallback={<LoadingSkeleton />}>
-            {children}
-          </Suspense>
-        </main>
-      </div>
+    <HealthProvider>
+      <div className="flex min-h-screen bg-[#f6fafaff] text-slate-900 font-sans">
+        {!isMobile && <Sidebar />}
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="flex-1 relative">
+            <Suspense fallback={<LoadingSkeleton />}>
+              {children}
+            </Suspense>
+          </main>
+        </div>
 
-      {isMobile && <BottomNav />}
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
-    </div>
+        {isMobile && <BottomNav />}
+        <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      </div>
+    </HealthProvider>
   );
 }

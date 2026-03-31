@@ -1,11 +1,14 @@
 "use client";
 
 import { DashboardScreen } from "@/components/screens/DashboardScreen";
-import { useHealthData } from "@/hooks/useHealthData";
+import { useHealth } from "@/contexts/HealthContext";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { 
     medications, 
     medicationLogs, 
@@ -23,7 +26,14 @@ export default function DashboardPage() {
     isMedsLoading, 
     isReadingsLoading, 
     refetch 
-  } = useHealthData();
+  } = useHealth();
+
+  useEffect(() => {
+    if (user?.id) {
+      console.log("[DashboardPage] Triggering data fetch");
+      refetch();
+    }
+  }, [user?.id, refetch]);
 
   return (
     <DashboardScreen

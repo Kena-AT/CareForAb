@@ -2,20 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Calendar, Moon, Sun, Activity, Bell } from 'lucide-react';
+import { User, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Bell, Activity, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useHealthData } from '@/hooks/useHealthData';
+import { useHealth } from '@/contexts/HealthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToPDF, exportToCSV } from '@/services/exportService';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Header } from '@/components/layout/Header';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +23,6 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface Profile {
@@ -41,11 +39,16 @@ interface ProfileScreenProps {
   onSettingsClick?: () => void;
 }
 
-export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: ProfileScreenProps = {}) => {
+export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
   const router = useRouter();
-  const { user, signOut } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
-  const { profile: healthProfile, medications, calculateAdherenceRate, calculateHealthScore, isLoading: isHealthLoading } = useHealthData();
+  const { user } = useAuth();
+  const { 
+    medications, 
+    medicationLogs,
+    bloodSugarReadings,
+    bloodPressureReadings,
+    isLoading: isHealthLoading 
+  } = useHealth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -217,12 +220,6 @@ export const ProfileScreen = ({ onNotificationsClick, onSettingsClick }: Profile
   const takenMeds = medicationLogs.filter(l => l.status === 'taken').length;
   const totalMeds = medicationLogs.length;
   const adherenceRate = totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
-
-  const menuItems = [
-    { icon: Bell, label: 'Notifications', description: 'Manage your medicine reminders', type: 'notifications' as const },
-    { icon: Shield, label: 'Account & Security', description: 'Protect your health information', type: 'privacy' as const },
-    { icon: HelpCircle, label: 'Help & Knowledge', description: 'Guides for healthy living', type: 'help' as const },
-  ];
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';

@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cancelAllReminders, scheduleAllMedicationReminders, sendTestNotification } from '@/services/notifications';
-import { useHealthData } from '@/hooks/useHealthData';
+import { useHealth } from '@/contexts/HealthContext';
 import { useEffect } from 'react';
 
 interface SettingsDialogProps {
@@ -36,7 +36,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
 
-  const { medications, schedules } = useHealthData();
+  const { medications, schedules } = useHealth();
 
   const [notifications, setNotifications] = useState<NotificationSettings>(() => {
     if (typeof window === 'undefined') {

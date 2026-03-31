@@ -57,11 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const { user, session, profile, loading, initialized } = authState;
   const [profileLoading, setProfileLoading] = useState(false);
+  const fetchingProfileRef = useRef<string | null>(null);
+  const initInProgressRef = useRef(false);
   
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Unified signOut - single source of truth for logout
   const signOut = useCallback(async (options?: { skipSupabase?: boolean }) => {
@@ -104,6 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch profile - auto-create on failure
   const fetchProfile = useCallback(async (userId: string, userMetadata?: { full_name?: string; date_of_birth?: string }): Promise<Profile | null> => {
+    if (fetchingProfileRef.current === userId) {
+      console.log('[AuthContext] Profile fetch already in progress for user:', userId);
+      return null;
+    }
+    fetchingProfileRef.current = userId;
+    
     setProfileLoading(true);
     try {
       const { data, error } = await supabase
@@ -157,6 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut();
       return null;
     } finally {
+      fetchingProfileRef.current = null;
       setProfileLoading(false);
     }
   }, [signOut]);
@@ -174,60 +182,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, signOut]);
 
+  // Consolidate state updates to prevent race conditions and duplicate renders
+  const syncAuthState = useCallback(async (session: Session | null) => {
+    const newUser = session?.user ?? null;
+    console.log(`[AuthContext] syncAuthState: ${newUser ? 'User found' : 'No user'}`);
+    
+    if (newUser) {
+      updateLastActivity();
+      const profileData = await fetchProfile(newUser.id, {
+        full_name: newUser.user_metadata?.full_name,
+        date_of_birth: newUser.user_metadata?.date_of_birth
+      });
+      
+      setAuthState(prev => ({
+        ...prev,
+        user: newUser,
+        session,
+        profile: profileData,
+        loading: false,
+        initialized: true,
+      }));
+    } else {
+      setAuthState(prev => ({
+        ...prev,
+        user: null,
+        session: null,
+        profile: null,
+        loading: false,
+        initialized: true,
+      }));
+    }
+  }, [fetchProfile]);
+
+  const userRef = useRef<User | null>(user);
+  const handleTimeoutCheckRef = useRef(handleTimeoutCheck);
+
+  // Keep refs in sync with state/callbacks to avoid stale closures in effects
+  useEffect(() => {
+    userRef.current = user;
+    handleTimeoutCheckRef.current = handleTimeoutCheck;
+  }, [user, handleTimeoutCheck]);
+
   useEffect(() => {
     let mounted = true;
     let activityCleanup: (() => void) | null = null;
 
     const initAuth = async () => {
-      console.log("[AuthContext] initAuth started");
-      // Check if session expired before restoring
-      if (isSessionExpired()) {
-        console.log('[AuthContext] Session expired on init, clearing state');
-        clearSession();
-        await supabase.auth.signOut();
-        if (mounted) {
-          setAuthState({
-            user: null,
-            session: null,
-            profile: null,
-            loading: false,
-            initialized: true,
-          });
-        }
-        return;
-      }
-
-      // Get current session from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
+      if (initialized || initInProgressRef.current) return;
+      initInProgressRef.current = true;
       
-      if (mounted) {
-        const user = session?.user ?? null;
-        
-        if (user) {
-          updateLastActivity();
-          // Fetch profile - will auto-create if missing
-          const profileData = await fetchProfile(user.id, {
-            full_name: session.user.user_metadata?.full_name,
-            date_of_birth: session.user.user_metadata?.date_of_birth
-          });
+      console.log("[AuthContext] initAuth started");
+      
+      try {
+        // Check if session expired before restoring
+        if (isSessionExpired()) {
+          console.log('[AuthContext] Session expired on init, clearing state');
+          clearSession();
+          await supabase.auth.signOut();
           if (mounted) {
-            setAuthState({
-              user,
-              session,
-              profile: profileData,
+            setAuthState(prev => ({
+              ...prev,
+              user: null,
+              session: null,
+              profile: null,
               loading: false,
               initialized: true,
-            });
+            }));
           }
-        } else {
-          setAuthState({
-            user: null,
-            session: null,
-            profile: null,
-            loading: false,
-            initialized: true,
-          });
+          return;
         }
+
+        // Get current session from Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) {
+          await syncAuthState(session);
+        }
+      } catch (error) {
+        console.error("[AuthContext] initAuth error:", error);
+      } finally {
+        initInProgressRef.current = false;
       }
     };
 
@@ -238,44 +271,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`[AuthContext] onAuthStateChange: ${event}`);
         
         if (event === 'SIGNED_OUT') {
-           setAuthState({
+           setAuthState(prev => ({
+             ...prev,
              user: null,
              session: null,
              profile: null,
              loading: false,
              initialized: true,
-           });
+           }));
            return;
         }
 
-        if (event === 'TOKEN_REFRESHED') return;
-        
-        const user = session?.user ?? null;
-        
-        if (user) {
-          updateLastActivity();
-          const profileData = await fetchProfile(user.id, {
-            full_name: session.user.user_metadata?.full_name,
-            date_of_birth: session.user.user_metadata?.date_of_birth
-          });
-          if (mounted) {
-            setAuthState({
-              user,
-              session,
-              profile: profileData,
-              loading: false,
-              initialized: true,
-            });
-          }
-        } else {
-          setAuthState({
-            user: null,
-            session,
-            profile: null,
-            loading: false,
-            initialized: true,
-          });
+        if (event === 'TOKEN_REFRESHED') {
+          return;
         }
+        
+        await syncAuthState(session);
       }
     );
 
@@ -291,17 +302,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activityCleanup = setupActivityTracking(() => {
       // Only update activity, don't check timeout here
       // Timeout check happens in the interval
-      if (user) {
+      if (userRef.current) {
         updateLastActivity();
       }
     });
 
-    // Periodic timeout check (every 30 seconds)
-    intervalRef.current = setInterval(() => {
-      handleTimeoutCheck();
+    // Handle session timeout check - uses ref to avoid re-triggering effect
+    const timeoutInterval = setInterval(() => {
+      if (userRef.current) {
+        handleTimeoutCheckRef.current();
+      }
     }, 30000);
 
-    // Initial auth setup
+    // Initial auth setup - only run once
     initAuth();
 
     return () => {
@@ -309,9 +322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
       window.removeEventListener('storage', handleStorageChange);
       if (activityCleanup) activityCleanup();
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearInterval(timeoutInterval);
     };
-  }, [fetchProfile, handleTimeoutCheck, user]);
+  }, [initialized, signOut, syncAuthState]); // Added missing dependencies
 
   // Redirect protection: ensure we don't stay on protected routes when logged out
   // Also block until profile is loaded (prevent race conditions)
@@ -330,7 +343,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
     try {
-      const { data: _authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {

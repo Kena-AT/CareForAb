@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isNetworkError } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,9 +42,9 @@ export const useHealthData = () => {
   const [isReadingsLoading, setIsReadingsLoading] = useState(true);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const fetchingRef = useRef<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    console.log("useHealthData RUN - fetchData called");
     if (!user?.id) {
       setIsLoading(false);
       setIsMedsLoading(false);
@@ -53,8 +53,15 @@ export const useHealthData = () => {
       return;
     }
 
+    // Prevent duplicate parallel fetches for the same user
+    if (fetchingRef.current === user.id) {
+      console.log(`[useHealthData] Fetch already in progress for ${user.id}, skipping`);
+      return;
+    }
+    
+    fetchingRef.current = user.id;
+    console.log(`[Performance] 🚀 Starting health data fetch sequence for user: ${user.id}`);
     const start = performance.now();
-    console.log('[Performance] Starting health data fetch sequence...');
 
     try {
       // Use local date for "Today"
@@ -62,7 +69,9 @@ export const useHealthData = () => {
       const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
       // --- PHASE 1: Critical Medication Data ---
+      const phase1Start = performance.now();
       setIsMedsLoading(true);
+      
       const [medsRes, schedulesRes, logsRes] = await Promise.all([
         supabase.from('medications').select('id,name,dosage,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
         (supabase.from('medication_schedules' as any) as any).select('id,medication_id,frequency,times,start_date,end_date,is_indefinite,is_active').eq('user_id', user.id).eq('is_active', true),
@@ -84,10 +93,10 @@ export const useHealthData = () => {
         today
       );
       
-      setIsMedsLoading(false);
-      console.log(`[Performance] Medication phase done in ${(performance.now() - start).toFixed(2)}ms`);
+      console.log(`[Performance] 💊 Medication phase done in ${(performance.now() - phase1Start).toFixed(2)}ms`);
 
       // --- PHASE 2: Profile & Other Health Data ---
+      const phase2Start = performance.now();
       setIsReadingsLoading(true);
       setIsProfileLoading(true);
       
@@ -114,7 +123,8 @@ export const useHealthData = () => {
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
       setIsReadingsLoading(false);
 
-      console.log(`[Performance] Sequence complete in ${(performance.now() - start).toFixed(2)}ms`);
+      console.log(`[Performance] 📊 Vital signs phase done in ${(performance.now() - phase2Start).toFixed(2)}ms`);
+      console.log(`[Performance] ✅ Entire sequence complete in ${(performance.now() - start).toFixed(2)}ms`);
     } catch (error: any) {
       if (isNetworkError(error)) {
         console.warn('[useHealthData] Network error fetching health data. Keeping current state.');
@@ -123,6 +133,7 @@ export const useHealthData = () => {
       console.error('Error fetching health data:', error?.message || 'Unknown error');
       toast.error(`Failed to load health data: ${error?.message || 'Unknown error'}`);
     } finally {
+      fetchingRef.current = null;
       setIsMedsLoading(false);
       setIsReadingsLoading(false);
       setIsProfileLoading(false);
@@ -130,21 +141,8 @@ export const useHealthData = () => {
     }
   }, [user?.id]);
 
-  // Initial data fetch - only when user ID changes
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadData = async () => {
-      if (!isMounted) return;
-      await fetchData();
-    };
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchData]);
+  // Initial data fetch is now handled by pages explicitly
+  // to avoid redundant global fetches on every page load
 
   // Compute today's schedule from medications, schedules, and logs
   const computeTodaySchedule = (
@@ -231,67 +229,6 @@ export const useHealthData = () => {
     } catch (error: any) {
       console.error('Error marking medication:', error);
       toast.error('Failed to update medication');
-    }
-  };
-
-
-  const addBloodSugarReading = async (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => {
-    if (!user) {
-      console.error('[addBloodSugarReading] No user found');
-      return;
-    }
-
-    try {
-      console.log('[addBloodSugarReading] Inserting reading:', { userId: user.id, value: reading.value, meal_type: reading.meal_type });
-      const { data, error } = await supabase
-        .from('blood_sugar_readings')
-        .insert({
-          user_id: user.id,
-          value: reading.value,
-          unit: reading.unit,
-          meal_type: reading.meal_type,
-          recorded_at: new Date().toISOString(),
-          notes: reading.notes
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[addBloodSugarReading] Supabase error:', error);
-        throw error;
-      }
-      console.log('[addBloodSugarReading] Success:', data);
-      setBloodSugarReadings(prev => [data as BloodSugarReading, ...prev]);
-      toast.success('Blood sugar reading saved!');
-    } catch (error: any) {
-      console.error('[addBloodSugarReading] Catch error:', error);
-      console.error('[addBloodSugarReading] Error details:', error?.message, error?.code, error?.details);
-      toast.error(`Failed to save reading: ${error?.message || 'Unknown error'}`);
-    }
-  };
-
-  const addBloodPressureReading = async (reading: Omit<BloodPressureReading, 'id' | 'recorded_at'>) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('blood_pressure_readings')
-        .insert({
-          user_id: user.id,
-          systolic: reading.systolic,
-          diastolic: reading.diastolic,
-          pulse: reading.pulse,
-          notes: reading.notes
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      setBloodPressureReadings(prev => [data as BloodPressureReading, ...prev]);
-      toast.success('Blood pressure reading saved!');
-    } catch (error: any) {
-      console.error('Error adding blood pressure reading:', error);
-      toast.error('Failed to save reading');
     }
   };
 
@@ -490,6 +427,66 @@ export const useHealthData = () => {
     return Math.round((stability * 0.6) + (adherence * 0.4));
   }, [calculateGlucoseStability, calculateAdherenceRate]);
 
+  const addBloodSugarReading = async (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => {
+    if (!user) {
+      console.error('[addBloodSugarReading] No user found');
+      return;
+    }
+
+    try {
+      console.log('[addBloodSugarReading] Inserting reading:', { userId: user.id, value: reading.value, meal_type: reading.meal_type });
+      const { data, error } = await supabase
+        .from('blood_sugar_readings')
+        .insert({
+          user_id: user.id,
+          value: reading.value,
+          unit: reading.unit,
+          meal_type: reading.meal_type,
+          recorded_at: new Date().toISOString(),
+          notes: reading.notes
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[addBloodSugarReading] Supabase error:', error);
+        throw error;
+      }
+      console.log('[addBloodSugarReading] Success:', data);
+      setBloodSugarReadings(prev => [data as BloodSugarReading, ...prev]);
+      toast.success('Blood sugar reading saved!');
+    } catch (error: any) {
+      console.error('[addBloodSugarReading] Catch error:', error);
+      console.error('[addBloodSugarReading] Error details:', error?.message, error?.code, error?.details);
+      toast.error(`Failed to save reading: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
+  const addBloodPressureReading = async (reading: Omit<BloodPressureReading, 'id' | 'recorded_at'>) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('blood_pressure_readings')
+        .insert({
+          user_id: user.id,
+          systolic: reading.systolic,
+          diastolic: reading.diastolic,
+          pulse: reading.pulse,
+          notes: reading.notes
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setBloodPressureReadings(prev => [data as BloodPressureReading, ...prev]);
+      toast.success('Blood pressure reading saved!');
+    } catch (error: any) {
+      console.error('Error adding blood pressure reading:', error);
+      toast.error('Failed to save reading');
+    }
+  };
+
   const addOxygenReading = async (value: number) => {
     if (!user) return;
     try {
@@ -568,6 +565,7 @@ export const useHealthData = () => {
     avatarUrl: profile?.avatar_url,
     language: profile?.language,
     timezone: profile?.timezone,
+    profile, // Added full profile for screens that need it
     refetch: fetchData
   };
 };

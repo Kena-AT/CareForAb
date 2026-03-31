@@ -189,18 +189,16 @@ export const SettingsScreen = () => {
         
         // Test 3: Try INSERT with 5s timeout
         console.log('[DB Test 3] Testing INSERT...');
-        const testId = crypto.randomUUID();
         const insertPromise = supabase
           .from('blood_sugar_readings')
           .insert({
-            id: testId,
             user_id: userData.user.id,
             value: 100,
             unit: 'mg/dL',
             meal_type: 'fasting',
             recorded_at: new Date().toISOString()
           })
-          .select()
+          .select('id')
           .single();
         
         const insertTimeout = new Promise((_, reject) => 
@@ -208,18 +206,23 @@ export const SettingsScreen = () => {
         );
         
         try {
-          const { error: insertError } = await Promise.race([insertPromise, insertTimeout]) as any;
+          const raceResult = await Promise.race([insertPromise, insertTimeout]) as any;
+          const { data: insertedData, error: insertError } = raceResult;
+          
           if (insertError) {
             console.error('[DB Test 3] INSERT error:', insertError);
-            results.push(`INSERT: ${insertError.code}`);
+            results.push(`INSERT: ${insertError.message || insertError.code || JSON.stringify(insertError)}`);
+          } else if (!insertedData) {
+            results.push('INSERT: No data returned');
           } else {
-            console.log('[DB Test 3] INSERT OK');
+            console.log('[DB Test 3] INSERT OK, id:', insertedData.id);
             results.push('INSERT: OK');
-            await supabase.from('blood_sugar_readings').delete().eq('id', testId);
+            // Clean up
+            await supabase.from('blood_sugar_readings').delete().eq('id', insertedData.id);
           }
         } catch (e: any) {
-          console.error('[DB Test 3] INSERT timeout');
-          results.push('INSERT: TIMEOUT (RLS?)');
+          console.error('[DB Test 3] INSERT exception:', e);
+          results.push(`INSERT: EXCEPTION (${e.message})`);
         }
       }
     } catch (e: any) {
