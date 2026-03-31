@@ -20,6 +20,7 @@ export default function DashboardPage() {
     getLatestPulse, 
     getLatestOxygen, 
     getTodaySteps, 
+    updateTodaySteps,
     calculateHealthScore, 
     calculateAdherenceStreak, 
     userName, 
@@ -46,9 +47,9 @@ export default function DashboardPage() {
       onMarkMedicationTaken={markMedicationTaken}
       onAddBloodSugar={addBloodSugarReading as any}
       onAddBloodPressure={addBloodPressureReading as any}
+      onUpdateSteps={updateTodaySteps}
       onNavigate={(tab) => router.push(`/${tab}`)}
       pulse={getLatestPulse()}
-      oxygen={getLatestOxygen()}
       steps={getTodaySteps()}
       healthScore={calculateHealthScore()}
       adherenceStreak={calculateAdherenceStreak()}

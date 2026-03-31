@@ -10,12 +10,13 @@ import { Header } from '@/components/layout/Header';
 import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading } from '@/types/health';
 import { MedicationCard } from '@/components/health/MedicationCard';
 import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { VitalsSkeleton, MedCardSkeleton } from '@/components/health/HealthSkeletons';
 
 const QuickAddModal = dynamic(() => import('@/components/health/QuickAddModal').then(m => m.QuickAddModal), { ssr: false });
 const EditReadingModal = dynamic(() => import('@/components/health/EditReadingModal').then(m => m.EditReadingModal), { ssr: false });
+const LogStepsModal = dynamic(() => import('@/components/health/LogStepsModal').then(m => m.LogStepsModal), { ssr: false });
 
 interface DashboardScreenProps {
   medications: Medication[];
@@ -31,11 +32,11 @@ interface DashboardScreenProps {
   onDeleteBloodSugar?: (readingId: string) => Promise<void>;
   onUpdateBloodPressure?: (readingId: string, updates: Partial<Omit<BloodPressureReading, 'id' | 'recorded_at'>>) => Promise<void>;
   onDeleteBloodPressure?: (readingId: string) => Promise<void>;
+  onUpdateSteps?: (steps: number) => Promise<void>;
   onNavigate: (tab: 'medications' | 'readings') => void;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
   pulse?: number | null;
-  oxygen?: number | null;
   steps?: number | null;
   healthScore?: number | null;
   adherenceStreak?: number | null;
@@ -57,17 +58,18 @@ export const DashboardScreen = ({
   onDeleteBloodSugar,
   onUpdateBloodPressure,
   onDeleteBloodPressure,
+  onUpdateSteps,
   onNavigate,
   onNotificationsClick,
   onSettingsClick,
   pulse,
-  oxygen,
   steps,
   healthScore,
   adherenceStreak,
   userName,
 }: DashboardScreenProps) => {
   const [addModal, setAddModal] = useState<'blood_sugar' | 'blood_pressure' | null>(null);
+  const [showStepsModal, setShowStepsModal] = useState(false);
   const [editReading, setEditReading] = useState<{ type: 'blood_sugar' | 'blood_pressure'; reading: BloodSugarReading | BloodPressureReading } | null>(null);
 
   const isMobile = useIsMobile();
@@ -124,13 +126,13 @@ export const DashboardScreen = ({
                 Log Glucose
               </Button>
               <Button 
-                onClick={() => setAddModal('blood_pressure')}
+                onClick={() => setShowStepsModal(true)}
                 className="bg-[#dfe3e3ff] hover:bg-[#d0d6d6] text-slate-700 rounded-[20px] h-14 px-8 font-black flex items-center gap-4"
               >
                 <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-slate-700 shadow-sm">
-                   <Heart size={20} />
+                   <Activity size={20} />
                 </div>
-                Log Pressure
+                Log Steps
               </Button>
            </div>
         </motion.section>
@@ -161,21 +163,6 @@ export const DashboardScreen = ({
              </>
            )}
 
-           {/* Vitals Card: Blood Oxygen (Node B7ANj) */}
-           {!isReadingsLoading && (
-             <Card className="lg:col-span-1 border-none bg-white shadow-xl shadow-slate-200/50 rounded-[20px] p-6 flex flex-col justify-between group hover:shadow-2xl transition-all h-full">
-                <div className="flex items-start justify-between">
-                   <div className="p-3 rounded-2xl bg-info/10 text-info group-hover:scale-110 transition-transform">
-                      <Droplets size={24} />
-                   </div>
-                   <CheckCircle2 size={16} className="text-success opacity-50" />
-                </div>
-                <div>
-                   <p className="text-3xl font-black text-slate-900 leading-none">{oxygen !== null && oxygen !== undefined ? `${oxygen}%` : '--'}</p>
-                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-2">Blood Oxygen</p>
-                </div>
-             </Card>
-           )}
 
            {/* Vitals Card: Activity/Steps */}
            {!isReadingsLoading && (
@@ -319,6 +306,16 @@ export const DashboardScreen = ({
           onDelete={editReading.type === 'blood_sugar' ? onDeleteBloodSugar : onDeleteBloodPressure}
         />
       )}
+
+      <AnimatePresence>
+        {showStepsModal && onUpdateSteps && (
+          <LogStepsModal
+            onClose={() => setShowStepsModal(false)}
+            onLog={onUpdateSteps}
+            currentSteps={steps || 0}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

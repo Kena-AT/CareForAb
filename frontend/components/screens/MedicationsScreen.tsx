@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Plus, Pill, MoreVertical, Clock, CheckCircle2, AlertCircle, Sun, Moon, Sunset, RefreshCcw, PackageOpen, Filter, LayoutGrid, User, Trash2 } from 'lucide-react';
+import { Plus, Pill, MoreVertical, CheckCircle2, AlertCircle, Sun, Moon, Sunset, RefreshCcw, PackageOpen, Filter, LayoutGrid, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,29 +17,24 @@ const AddMedicationModal = dynamic(() => import('@/components/health/AddMedicati
 const InventoryModal = dynamic(() => import('@/components/health/InventoryModal').then(m => m.InventoryModal), { ssr: false });
 const RegisterRxModal = dynamic(() => import('@/components/health/RegisterRxModal').then(m => m.RegisterRxModal), { ssr: false });
 const DeleteConfirmationModal = dynamic(() => import('@/components/health/DeleteConfirmationModal').then(m => m.DeleteConfirmationModal), { ssr: false });
+const EditMedicationModal = dynamic(() => import('@/components/health/EditMedicationModal').then(m => m.EditMedicationModal), { ssr: false });
 
 interface MedicationsScreenProps {
   medications: Medication[];
   todaySchedule: TodayScheduleItem[];
   isMedsLoading?: boolean;
-  onMarkMedicationTaken: (logId: string) => void;
+  onMarkMedicationTaken: (_logId: string) => void;
   onAddMedication: (
-    medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
-    schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
+    _medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
+    _schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
   ) => Promise<any>;
-  onUpdateMedication?: (medicationId: string, updates: Partial<Medication>) => Promise<any>;
-  onDeleteMedication?: (medicationId: string) => Promise<void>;
+  onUpdateMedication?: (_medicationId: string, _updates: Partial<Medication>) => Promise<any>;
+  onDeleteMedication?: (_medicationId: string) => Promise<void>;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
   onRefresh?: () => Promise<void>;
 }
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  daily: 'Daily',
-  twice_daily: 'Twice Daily',
-  weekly: 'Weekly',
-  as_needed: 'As Needed',
-};
 
 const getTimeOfDay = (time: string) => {
   const hour = parseInt(time.split(':')[0], 10);
@@ -81,6 +76,7 @@ export const MedicationsScreen = ({
   const [showSuccessModal, setShowSuccessModal] = useState<string | null>(null);
   const [inventoryModalMed, setInventoryModalMed] = useState<Medication | null>(null);
   const [deleteConfirmMed, setDeleteConfirmMed] = useState<Medication | null>(null);
+  const [editMedication, setEditMedication] = useState<Medication | null>(null);
   const { addNotification } = useNotifications();
 
   // Use todaySchedule directly from props - computed from medications + schedules
@@ -348,6 +344,12 @@ export const MedicationsScreen = ({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="rounded-2xl border-slate-100 shadow-xl" align="end">
                             <DropdownMenuItem
+                              onClick={() => setEditMedication(med)}
+                              className="font-bold gap-2 rounded-xl"
+                            >
+                              <Plus size={14} className="rotate-45" /> Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => setInventoryModalMed(med)}
                               className="font-bold gap-2 rounded-xl"
                             >
@@ -456,6 +458,17 @@ export const MedicationsScreen = ({
           <InventoryModal
             medication={inventoryModalMed}
             onClose={() => setInventoryModalMed(null)}
+            onUpdate={onUpdateMedication}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Edit Medication Modal */}
+      <AnimatePresence>
+        {editMedication && onUpdateMedication && (
+          <EditMedicationModal
+            medication={editMedication}
+            onClose={() => setEditMedication(null)}
             onUpdate={onUpdateMedication}
           />
         )}
