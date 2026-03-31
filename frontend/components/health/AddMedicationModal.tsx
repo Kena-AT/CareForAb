@@ -136,9 +136,9 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
                  <ShieldCheck size={40} />
               </div>
               <div className="space-y-2">
-                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Safety Audit Alert</h2>
+                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">CareForAb AI Safety Audit</h2>
                  <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                    Our intelligence detected potential risks:
+                    CareForAb AI detected potential health risks:
                  </p>
               </div>
               <div className="bg-orange-50 rounded-2xl p-6 text-left space-y-4">

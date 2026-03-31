@@ -23,7 +23,7 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
-    You are a Senior Clinical AI Analyst for the CareForAb app. 
+    You are CareForAb AI, a Senior Clinical AI Analyst for the CareForAb app. 
     Analyze the following patient health data for patterns, risks, and actionable correlations.
     
     Data Snapshot:
@@ -54,10 +54,10 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
     throw new Error("Failed to parse AI response.");
   } catch (error: any) {
-    console.error("Gemini Analysis Error:", error);
+    console.error("CareForAb AI Analysis Error:", error);
     return {
-      pattern: "Analysis Temporarily Unavailable",
-      explanation: "Our AI service is stabilizing data markers.",
+      pattern: "CareForAb AI Temporarily Unavailable",
+      explanation: "Our clinical engine is stabilizing data markers.",
       recommendation: "Please try running your health audit again in a few moments.",
       type: "info"
     };

@@ -141,7 +141,7 @@ export const InsightsScreen = () => {
     <div className="min-h-screen bg-[#f6fafaff] pb-24 text-slate-900">
       <Header 
         title="Clinical Insights" 
-        subtitle="AI Health Intelligence"
+        subtitle="CareForAb AI Health Intelligence"
         rightElement={
           <div className="flex bg-slate-100 p-1 rounded-xl">
             {[7, 14, 30].map((t) => (
@@ -324,8 +324,8 @@ export const InsightsScreen = () => {
                                    <p className="text-2xl font-black text-slate-900 mb-2">{data.value} mg/dL</p>
                                    {data.isAnomaly && (
                                      <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-100">
-                                       <p className="text-[10px] font-black text-red-600 uppercase tracking-wider mb-1">AI Detection</p>
-                                       <p className="text-[10px] font-bold text-red-400">Shift in longitudinal baseline detected.</p>
+                                       <p className="text-[10px] font-black text-red-600 uppercase tracking-wider mb-1">CareForAb AI Detection</p>
+                                       <p className="text-[10px] font-bold text-red-400">Shift in CareForAb AI longitudinal baseline detected.</p>
                                      </div>
                                    )}
                                  </div>
@@ -376,7 +376,7 @@ export const InsightsScreen = () => {
                 <div className="w-16 h-16 rounded-3xl border-4 border-[#004c56] border-t-transparent animate-spin mx-auto" />
                 <div className="space-y-1">
                   <h4 className="text-xl font-black text-slate-900 tracking-tight">Clinical Brain Syncing...</h4>
-                  <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Applying gemini-2.5-flash models</p>
+                  <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Applying CareForAb AI models (gemini-2.5-flash)</p>
                 </div>
              </div>
           </section>

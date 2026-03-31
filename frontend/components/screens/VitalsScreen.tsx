@@ -218,7 +218,7 @@ export const VitalsScreen = () => {
                      <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
                         <Heart size={16} />
                      </div>
-                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Heart Health · AI</span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Heart Health · CareForAb AI</span>
                   </div>
                   {isBpLoading ? (
                     <div className="flex items-center gap-3">
