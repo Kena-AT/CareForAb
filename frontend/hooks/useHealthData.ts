@@ -433,31 +433,51 @@ export const useHealthData = () => {
       return;
     }
 
+    const payload: any = {
+      user_id: user.id,
+      value: reading.value,
+      unit: reading.unit,
+      recorded_at: new Date().toISOString(),
+      notes: reading.notes
+    };
+
+    // Try including meal_type by default
+    if (reading.meal_type) {
+      payload.meal_type = reading.meal_type;
+    }
+
     try {
-      console.log('[addBloodSugarReading] Inserting reading:', { userId: user.id, value: reading.value, meal_type: reading.meal_type });
+      console.log('[addBloodSugarReading] Attempting insert:', payload);
       const { data, error } = await supabase
         .from('blood_sugar_readings')
-        .insert({
-          user_id: user.id,
-          value: reading.value,
-          unit: reading.unit,
-          meal_type: reading.meal_type,
-          recorded_at: new Date().toISOString(),
-          notes: reading.notes
-        })
+        .insert(payload)
         .select()
         .single();
 
       if (error) {
-        console.error('[addBloodSugarReading] Supabase error:', error);
+        // PGRST204 means the column 'meal_type' (or another) doesn't exist in the DB
+        if (error.code === 'PGRST204' && payload.meal_type) {
+          console.warn('[useHealthData] meal_type column missing, retrying without it...');
+          const { meal_type: _, ...minimalPayload } = payload;
+          const { data: retryData, error: retryError } = await supabase
+            .from('blood_sugar_readings')
+            .insert(minimalPayload)
+            .select()
+            .single();
+          
+          if (retryError) throw retryError;
+          setBloodSugarReadings(prev => [retryData as BloodSugarReading, ...prev]);
+          toast.success('Reading saved (without meal type)');
+          return;
+        }
         throw error;
       }
+      
       console.log('[addBloodSugarReading] Success:', data);
       setBloodSugarReadings(prev => [data as BloodSugarReading, ...prev]);
       toast.success('Blood sugar reading saved!');
     } catch (error: any) {
-      console.error('[addBloodSugarReading] Catch error:', error);
-      console.error('[addBloodSugarReading] Error details:', error?.message, error?.code, error?.details);
+      console.error('[addBloodSugarReading] Error:', error);
       toast.error(`Failed to save reading: ${error?.message || 'Unknown error'}`);
     }
   };

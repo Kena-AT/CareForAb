@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  Moon, Sun, Bell, Shield, Mail, Activity, 
-  ChevronRight, Lock, User, Globe, Smartphone,
+  Shield, Mail, Activity, 
+  Lock, Globe, Smartphone,
   Save, Volume2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,6 @@ export const SettingsScreen = () => {
   const { addNotification } = useNotifications();
   
   // Settings State
-  const [displayName, setDisplayName] = useState('');
   const [language, setLanguage] = useState('English (United States)');
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -53,7 +52,6 @@ export const SettingsScreen = () => {
       if (error) throw error;
       if (data) {
         const profileData = data as any;
-        setDisplayName(profileData.full_name || '');
         setLanguage(profileData.language || 'English (United States)');
         if (profileData.notification_preferences) {
           setNotifications(profileData.notification_preferences);
@@ -132,7 +130,7 @@ export const SettingsScreen = () => {
     console.log('[DB Test 0] Testing network...');
     try {
       const pingStart = Date.now();
-      const pingRes = await fetch('https://www.google.com/favicon.ico', { 
+      await fetch('https://www.google.com/favicon.ico', { 
         method: 'HEAD',
         mode: 'no-cors'
       });
@@ -144,24 +142,47 @@ export const SettingsScreen = () => {
       setIsTestingDb(false);
       return;
     }
+
+    // Test 0.1: Supabase Reachability (Direct Fetch)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    console.log('[DB Test 0.1] Testing Supabase reachability:', supabaseUrl.slice(0, 15) + '...');
+    try {
+      const reachStart = Date.now();
+      const reachRes = await fetch(`${supabaseUrl}/rest/v1/`, { 
+        method: 'GET',
+        headers: { 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '' }
+      });
+      // 401 is actually "OK" for reachability because it proves the server responded.
+      const isReachable = reachRes.ok || reachRes.status === 401;
+      results.push(`Supabase Reach: ${isReachable ? 'OK' : 'FAIL (' + reachRes.status + ')'} (${Date.now() - reachStart}ms)`);
+    } catch (e: any) {
+      console.error('[DB Test 0.1] Supabase unreachable:', e);
+      results.push(`Supabase Reach: UNREACHABLE (${e.message})`);
+    }
     
-    // Test 1: Check auth
-    console.log('[DB Test 1] Getting auth user...');
-    const authPromise = supabase.auth.getUser();
-    const authTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('timeout')), 5000)
-    );
+    // Test 1: Check auth (Increase timeout to 10s)
+    console.log('[DB Test 1] Getting auth session/user...');
     
     try {
+      // 1.0: Local Session (Always fast)
+      const { data: { session: localSession } } = await supabase.auth.getSession();
+      results.push(`Local Session: ${localSession ? 'FOUND' : 'NOT FOUND'}`);
+
+      // 1.1: Verified User (Requires network)
+      const authPromise = supabase.auth.getUser();
+      const authTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth lookup timed out (10s)')), 10000)
+      );
+      
       const { data: userData, error: authError } = await Promise.race([authPromise, authTimeout]) as any;
       if (authError) {
-        console.error('[DB Test 1] Auth error:', authError);
-        results.push(`Auth: ${authError.message}`);
+        console.error('[DB Test 1.1] Auth error:', authError);
+        results.push(`Auth User: ${authError.message}`);
       } else if (!userData.user) {
-        results.push('Auth: No user logged in');
+        results.push('Auth User: No user');
       } else {
-        console.log('[DB Test 1] Auth OK, user:', userData.user.id);
-        results.push(`Auth: OK`);
+        console.log('[DB Test 1.1] Auth OK, user:', userData.user.id);
+        results.push(`Auth User: OK`);
         
         // Test 2: Try simple SELECT (reads are usually allowed)
         console.log('[DB Test 2] Testing SELECT...');
@@ -182,22 +203,41 @@ export const SettingsScreen = () => {
           } else {
             console.log('[DB Test 2] SELECT OK');
             results.push('SELECT: OK');
+            
+            // Test 2.5: Schema introspection (List columns)
+            console.log('[DB Test 2.5] Introspecting schema...');
+            const { data: schemaData } = await supabase.from('blood_sugar_readings').select('*').limit(1);
+            if (schemaData && schemaData.length > 0) {
+              const columns = Object.keys(schemaData[0]);
+              console.log('[DB Test 2.5] Columns found:', columns);
+              results.push(`Schema: [${columns.join(', ')}]`);
+              (window as any)._lastSchema = columns;
+            } else {
+              results.push('Schema: Empty table (cannot introspect)');
+            }
           }
-        } catch (e: any) {
+        } catch {
           results.push('SELECT: TIMEOUT');
         }
         
         // Test 3: Try INSERT with 5s timeout
         console.log('[DB Test 3] Testing INSERT...');
+        const columns = (window as any)._lastSchema || [];
+        const insertPayload: any = {
+          user_id: userData.user.id,
+          value: 100,
+          unit: 'mg/dL',
+          recorded_at: new Date().toISOString()
+        };
+        
+        // Only include meal_type if it definitely exists in the schema cache
+        if (columns.includes('meal_type')) {
+          insertPayload.meal_type = 'fasting';
+        }
+
         const insertPromise = supabase
           .from('blood_sugar_readings')
-          .insert({
-            user_id: userData.user.id,
-            value: 100,
-            unit: 'mg/dL',
-            meal_type: 'fasting',
-            recorded_at: new Date().toISOString()
-          })
+          .insert(insertPayload)
           .select('id')
           .single();
         
@@ -225,7 +265,7 @@ export const SettingsScreen = () => {
           results.push(`INSERT: EXCEPTION (${e.message})`);
         }
       }
-    } catch (e: any) {
+    } catch {
       console.error('[DB Test 1] Auth timeout');
       results.push('Auth: TIMEOUT');
     }

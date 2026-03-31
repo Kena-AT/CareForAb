@@ -27,10 +27,12 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   initialized: boolean;
+  /* eslint-disable */
   signUp: (email: string, password: string, fullName: string, dateOfBirth: string) => Promise<{ error: Error | null }>;
   verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error: string | null }>;
   resendOtp: (email: string, fullName: string) => Promise<{ success: boolean; error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  /* eslint-enable */
   signOut: () => Promise<void>;
 }
 
@@ -252,13 +254,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Get current session from Supabase
-        const { data: { session } } = await supabase.auth.getSession();
+        // Get current session from Supabase with a 10s timeout protective race
+        console.log("[AuthContext] Fetching initial session...");
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth init timeout')), 10000)
+        );
+
+        const { data: { session } } = await Promise.race([sessionPromise, sessionTimeout]) as any;
+        
         if (mounted) {
+          console.log(`[AuthContext] Session retrieved: ${session ? 'Active' : 'None'}`);
           await syncAuthState(session);
         }
       } catch (error) {
-        console.error("[AuthContext] initAuth error:", error);
+        console.error("[AuthContext] initAuth error or timeout:", error);
+        // On timeout or error, we must still initialize to unblocked state
+        if (mounted) {
+          setAuthState(prev => ({
+            ...prev,
+            loading: false,
+            initialized: true
+          }));
+        }
       } finally {
         initInProgressRef.current = false;
       }

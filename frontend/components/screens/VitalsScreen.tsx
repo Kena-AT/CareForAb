@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { useHealth } from '@/contexts/HealthContext';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
 import { analyzeBloodPressure } from '@/services/gemini';
@@ -144,6 +144,21 @@ export const VitalsScreen = () => {
                   </AreaChart>
                </ResponsiveContainer>
             </Card>
+
+            <div className="flex items-center justify-between px-2">
+                <Button 
+                   onClick={() => { setModalType('blood_sugar'); setIsAddModalOpen(true); }}
+                   className="bg-[#004c56ff] hover:bg-[#003a42] text-white rounded-[20px] h-12 px-6 font-black flex items-center gap-3 shadow-xl shadow-[#004c5633]"
+                >
+                   <Droplets size={18} /> Log Glucose
+                </Button>
+                <Button 
+                   onClick={() => { setModalType('blood_pressure'); setIsAddModalOpen(true); }}
+                   className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-100 rounded-[20px] h-12 px-6 font-black flex items-center gap-3"
+                >
+                   <Heart size={18} /> Log Pressure
+                </Button>
+            </div>
           </motion.div>
 
           {/* Recent Readings - Vertical Accent */}
@@ -175,9 +190,9 @@ export const VitalsScreen = () => {
                               <p className="text-lg font-black text-slate-900 leading-none">{reading.value}</p>
                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">mg/dL</span>
                            </div>
-                           <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-1">
-                              {new Date(reading.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {reading.meal_type}
-                           </p>
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-1">
+                               {new Date(reading.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {reading.meal_type || 'General'}
+                            </p>
                         </div>
                      </div>
                      <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${

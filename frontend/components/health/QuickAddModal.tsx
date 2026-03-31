@@ -115,18 +115,18 @@ export const QuickAddModal = ({
                   </div>
                   
                   <div className="space-y-3">
-                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Meal Type</Label>
+                    <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Collection Timing</Label>
                     <Select value={mealType} onValueChange={(v) => setMealType(v as BloodSugarReading['meal_type'])}>
                       <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none font-bold text-slate-700">
                         <SelectValue placeholder="Select meal type..." />
                       </SelectTrigger>
                       <SelectContent position="popper" className="rounded-2xl border-slate-100 shadow-xl z-[200]">
-                        <SelectItem value="fasting" className="font-bold py-3">🌅 Fasting (Morning)</SelectItem>
-                        <SelectItem value="breakfast" className="font-bold py-3">🍳 Breakfast</SelectItem>
-                        <SelectItem value="lunch" className="font-bold py-3">🥗 Lunch</SelectItem>
-                        <SelectItem value="dinner" className="font-bold py-3">🍲 Dinner</SelectItem>
-                        <SelectItem value="snack" className="font-bold py-3">🥨 Snack</SelectItem>
-                        <SelectItem value="other" className="font-bold py-3">📍 Other</SelectItem>
+                        <SelectItem value="fasting" className="font-bold py-3">🌅 Baseline (Waking)</SelectItem>
+                        <SelectItem value="breakfast" className="font-bold py-3">🌅 Early Day (Post-Prandial I)</SelectItem>
+                        <SelectItem value="lunch" className="font-bold py-3">☀️ Mid Day (Post-Prandial II)</SelectItem>
+                        <SelectItem value="dinner" className="font-bold py-3">🌙 Late Day (Post-Prandial III)</SelectItem>
+                        <SelectItem value="snack" className="font-bold py-3">📍 Supplemental Reading</SelectItem>
+                        <SelectItem value="other" className="font-bold py-3">📍 General Context</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

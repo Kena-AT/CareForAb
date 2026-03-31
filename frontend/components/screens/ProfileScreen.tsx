@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Shield, HelpCircle, LogOut, ChevronRight, FileText, Download, Bell, Activity, Calendar } from 'lucide-react';
+import { LogOut, ChevronRight, FileText, Download, Activity, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealth } from '@/contexts/HealthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { exportToPDF, exportToCSV } from '@/services/exportService';
-import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
@@ -47,15 +44,9 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
     medicationLogs,
     bloodSugarReadings,
     bloodPressureReadings,
-    isLoading: isHealthLoading 
   } = useHealth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [settingsDialog, setSettingsDialog] = useState<{ open: boolean; type: 'notifications' | 'privacy' | 'help' }>({
-    open: false,
-    type: 'notifications',
-  });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -93,8 +84,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
         userName: profile?.full_name || user?.email || 'User',
       });
       toast.success('PDF report downloaded!');
-      setExportDialogOpen(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate PDF');
     }
   };
@@ -109,7 +99,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
       });
       toast.success('CSV report downloaded!');
       setExportDialogOpen(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate CSV');
     }
   };
@@ -181,7 +171,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
       setProfile(prev => prev ? { ...prev, blood_type: newBloodType } : prev);
       setIsEditingBloodType(false);
       toast.success('Blood type updated');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update blood type');
     }
   };
@@ -255,12 +245,11 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
                 
                 <div className="relative cursor-pointer group">
                   <Avatar className="h-32 w-32 border-4 border-white shadow-xl bg-slate-50/50">
-                    {profile?.avatar_url ? (
+                    <AvatarFallback className="text-4xl font-black text-slate-300">
+                      {getInitials(profile?.full_name)}
+                    </AvatarFallback>
+                    {profile?.avatar_url && (
                       <img src={profile.avatar_url} alt="Profile" className="object-cover w-full h-full" />
-                    ) : (
-                      <AvatarFallback className="text-4xl font-black text-slate-300">
-                        {getInitials(profile?.full_name)}
-                      </AvatarFallback>
                     )}
                   </Avatar>
                   <label className="absolute inset-0 bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-xs font-bold">
