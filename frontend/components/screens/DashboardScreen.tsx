@@ -85,7 +85,6 @@ export const DashboardScreen = ({
     return logDate === new Date().toDateString();
   });
 
-  const pendingMeds = todayLogs.filter(log => log.status === 'pending');
   const takenMeds = todayLogs.filter(log => log.status === 'taken');
 
   // Animation variants
@@ -225,7 +224,7 @@ export const DashboardScreen = ({
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-2">
                     <div className="h-6 w-1 bg-primary rounded-full" />
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Therapeutic Schedule</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Daily Medication Protocol</h3>
                  </div>
               </div>
 
@@ -236,8 +235,14 @@ export const DashboardScreen = ({
                     <MedCardSkeleton />
                     <MedCardSkeleton />
                   </>
-                ) : pendingMeds.length > 0 ? (
-                  pendingMeds.slice(0, 3).map((log) => {
+                ) : todayLogs.length > 0 ? (
+                  todayLogs
+                    .sort((a, b) => {
+                      if (a.status === 'pending' && b.status !== 'pending') return -1;
+                      if (a.status !== 'pending' && b.status === 'pending') return 1;
+                      return a.scheduled_time.localeCompare(b.scheduled_time);
+                    })
+                    .map((log) => {
                     const medication = medications.find(m => m.id === log.medication_id);
                     if (!medication) return null;
                     return (

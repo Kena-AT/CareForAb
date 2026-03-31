@@ -69,14 +69,16 @@ export const useHealthData = () => {
       const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
 
       // --- PHASE 1: Critical Medication Data ---
+      console.log('[useHealthData] Phase 1: Fetching medications, schedules, and logs...');
       const phase1Start = performance.now();
       setIsMedsLoading(true);
       
-      const [medsRes, schedulesRes, logsRes] = await Promise.all([
-        supabase.from('medications').select('id,name,dosage,form_type,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
-        (supabase.from('medication_schedules' as any) as any).select('id,medication_id,frequency,times,start_date,end_date,is_indefinite,is_active').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('medication_logs').select('id,medication_id,scheduled_time,status,taken_at,date').eq('user_id', user.id).eq('date', today),
-      ]);
+      const medsPromise = supabase.from('medications').select('id,name,dosage,form_type,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false });
+      const schedulesPromise = (supabase.from('medication_schedules' as any) as any).select('id,medication_id,frequency,times,start_date,end_date,is_indefinite,is_active').eq('user_id', user.id).eq('is_active', true);
+      const logsPromise = supabase.from('medication_logs').select('id,medication_id,scheduled_time,status,taken_at,date').eq('user_id', user.id).eq('date', today);
+
+      const [medsRes, schedulesRes, logsRes] = await Promise.all([medsPromise, schedulesPromise, logsPromise]);
+      console.log('[useHealthData] Phase 1 Complete. Results:', { meds: !!medsRes.data, schedules: !!schedulesRes.data, logs: !!logsRes.data });
 
       if (medsRes.error) throw medsRes.error;
       if (schedulesRes.error) throw schedulesRes.error;
@@ -96,22 +98,22 @@ export const useHealthData = () => {
       console.log(`[Performance] 💊 Medication phase done in ${(performance.now() - phase1Start).toFixed(2)}ms`);
 
       // --- PHASE 2: Profile & Other Health Data ---
+      console.log('[useHealthData] Phase 2: Fetching profile and vitals...');
       const phase2Start = performance.now();
       setIsReadingsLoading(true);
       setIsProfileLoading(true);
       
-      const [profileRes, sugarRes, bpRes, oxygenRes, activityRes] = await Promise.all([
+      const [profileRes, sugarRes, bpRes, activityRes] = await Promise.all([
         supabase.from('profiles').select('full_name, blood_type, avatar_url, language').eq('id', user.id).maybeSingle(),
         supabase.from('blood_sugar_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
         supabase.from('blood_pressure_readings').select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(50),
-        supabase.from('oxygen_readings' as any).select('*').eq('user_id', user.id).order('recorded_at', { ascending: false }).limit(20),
         supabase.from('activity_readings' as any).select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
       ]);
+      console.log('[useHealthData] Phase 2 Complete.');
 
       if (profileRes.error) throw profileRes.error;
       if (sugarRes.error) throw sugarRes.error;
       if (bpRes.error) throw bpRes.error;
-      if (oxygenRes.error) throw oxygenRes.error;
       if (activityRes.error) throw activityRes.error;
 
       setProfile(profileRes.data as any);
@@ -119,7 +121,6 @@ export const useHealthData = () => {
 
       setBloodSugarReadings(sugarRes.data as BloodSugarReading[] || []);
       setBloodPressureReadings(bpRes.data as BloodPressureReading[] || []);
-      setOxygenReadings(oxygenRes.data as unknown as OxygenReading[] || []);
       setActivityReadings(activityRes.data as unknown as ActivityReading[] || []);
       setIsReadingsLoading(false);
 
@@ -334,6 +335,7 @@ export const useHealthData = () => {
 
   const updateMedication = async (medicationId: string, updates: Partial<Medication>) => {
     try {
+      console.log('[useHealthData] updateMedication started for:', medicationId);
       const { data, error } = await supabase
         .from('medications')
         .update(updates)
@@ -342,10 +344,15 @@ export const useHealthData = () => {
         .single();
 
       if (error) throw error;
+      console.log('[useHealthData] updateMedication success');
 
       setMedications(prev => 
         prev.map(m => m.id === medicationId ? { ...m, ...data } as Medication : m)
       );
+      
+      // Refresh to update computed states
+      console.log('[useHealthData] updateMedication triggering refetch...');
+      await fetchData();
       
       toast.success('Medication updated');
       return data;
@@ -358,6 +365,7 @@ export const useHealthData = () => {
 
   const updateMedicationSchedule = async (scheduleId: string, updates: Partial<MedicationSchedule>) => {
     try {
+      console.log('[useHealthData] updateMedicationSchedule started for:', scheduleId);
       const { data, error } = await supabase
         .from('medication_schedules')
         .update(updates)
@@ -366,12 +374,14 @@ export const useHealthData = () => {
         .single();
 
       if (error) throw error;
+      console.log('[useHealthData] updateMedicationSchedule success');
 
       setSchedules(prev => 
         prev.map(s => s.id === scheduleId ? { ...s, ...data } as MedicationSchedule : s)
       );
       
       // Also refresh to update today's schedule
+      console.log('[useHealthData] updateMedicationSchedule triggering refetch...');
       await fetchData();
       
       toast.success('Schedule updated');
@@ -629,6 +639,7 @@ export const useHealthData = () => {
 
   const updateTodaySteps = async (steps: number) => {
     if (!user) return;
+    console.log('[useHealthData] updateTodaySteps started for:', user.id, 'steps:', steps);
     const now = new Date();
     const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
     try {
@@ -636,13 +647,18 @@ export const useHealthData = () => {
         .upsert({ user_id: user.id, date: today, steps }, { onConflict: 'user_id,date' })
         .select()
         .single();
+      
       if (error) throw error;
+      console.log('[useHealthData] updateTodaySteps success:', data);
+
       setActivityReadings(prev => {
         const filtered = prev.filter(a => a.date !== today);
         return [data as ActivityReading, ...filtered];
       });
+      toast.success('Steps logged successfully');
     } catch (error) {
       console.error('Error updating steps:', error);
+      toast.error('Failed to log steps');
     }
   };
 

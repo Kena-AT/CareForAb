@@ -16,15 +16,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. MEDICATIONS
+-- 2. MEDICATIONS (Templates)
 CREATE TABLE IF NOT EXISTS public.medications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   dosage TEXT NOT NULL,
   form_type TEXT DEFAULT 'tablet' CHECK (form_type IN ('tablet','capsule','injection','liquid','patch','inhaler','other')),
-  frequency TEXT NOT NULL,
-  times TEXT[] NOT NULL DEFAULT '{}',
   notes TEXT,
   doctor TEXT,
   prescription_number TEXT,
@@ -33,6 +31,28 @@ CREATE TABLE IF NOT EXISTS public.medications (
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 2.1 MEDICATION SCHEDULES (Timing Rules)
+CREATE TABLE IF NOT EXISTS public.medication_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    medication_id UUID NOT NULL REFERENCES public.medications(id) ON DELETE CASCADE,
+    frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'twice_daily', 'weekly', 'as_needed')),
+    treatment_type TEXT DEFAULT 'chronic' CHECK (treatment_type IN ('chronic', 'acute', 'supplement')),
+    times TEXT[] NOT NULL DEFAULT '{}',
+    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    end_date DATE,
+    is_indefinite BOOLEAN NOT NULL DEFAULT true,
+    reminder_minutes_before INTEGER DEFAULT 15,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT indefinite_end_date_check CHECK (
+        (is_indefinite = true AND end_date IS NULL)
+        OR
+        (is_indefinite = false)
+    )
 );
 
 -- 3. MEDICATION LOGS
@@ -101,11 +121,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 -- SECURITY (RLS)
 -- ==========================================
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.medications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.medication_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.blood_sugar_readings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.blood_pressure_readings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.medication_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.oxygen_readings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_readings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
@@ -113,6 +129,7 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 -- Unified policy generation (simplified)
 CREATE POLICY "Users can manage own profiles" ON public.profiles FOR ALL USING (auth.uid() = id);
 CREATE POLICY "Users can manage own medications" ON public.medications FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own medication_schedules" ON public.medication_schedules FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own medication_logs" ON public.medication_logs FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own blood_sugar" ON public.blood_sugar_readings FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own blood_pressure" ON public.blood_pressure_readings FOR ALL USING (auth.uid() = user_id);
@@ -149,29 +166,38 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_medications_updated_at BEFORE UPDATE ON public.medications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_medication_schedules_updated_at BEFORE UPDATE ON public.medication_schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ==========================================
 -- VIEWS
 -- ==========================================
 
 -- Today's Schedule View: Combines medications with their logs for today
+-- This view logic now correctly joins through the schedules table AND logs to get status
 CREATE OR REPLACE VIEW public.today_schedule AS
 SELECT 
     ml.id as log_id,
-    ml.user_id,
-    ml.medication_id,
-    ml.scheduled_time,
+    m.id as medication_id,
+    m.user_id,
+    m.name as medication_name,
+    m.dosage,
+    m.doctor,
+    ms.frequency,
+    ms.treatment_type,
+    ms.times as scheduled_times, -- Full array
+    ml.scheduled_time, -- Specific time for this log
     ml.status,
     ml.taken_at,
     ml.date,
-    m.name as medication_name,
-    m.dosage,
-    m.frequency,
-    m.doctor,
+    ms.id as schedule_id,
     m.inventory_count,
-    m.refill_threshold,
-    m.notes as medication_notes
-FROM public.medication_logs ml
-JOIN public.medications m ON ml.medication_id = m.id
-WHERE ml.date = CURRENT_DATE
-ORDER BY ml.scheduled_time;
+    m.refill_threshold
+FROM public.medications m
+JOIN public.medication_schedules ms ON m.id = ms.medication_id
+LEFT JOIN public.medication_logs ml ON m.id = ml.medication_id 
+    AND ml.date = CURRENT_DATE 
+    AND ml.scheduled_time = ANY(ms.times)
+WHERE m.is_active = true
+    AND ms.is_active = true
+    AND ms.start_date <= CURRENT_DATE
+    AND (ms.is_indefinite = true OR ms.end_date >= CURRENT_DATE);
