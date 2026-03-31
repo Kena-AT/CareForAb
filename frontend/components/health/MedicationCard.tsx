@@ -14,16 +14,31 @@ import { cn } from '@/lib/utils';
 
 interface MedicationCardProps {
   medication: Medication;
-  log: MedicationLog;
-  onMarkTaken: (logId: string) => void;
+  log?: MedicationLog;
+  status?: 'pending' | 'taken' | 'missed' | 'skipped';
+  scheduledTime?: string;
+  onMarkTaken: (logId?: string, medicationId?: string, scheduledTime?: string) => void;
   onEdit?: (medication: Medication) => void;
   onDelete?: (medicationId: string) => void;
   showActions?: boolean;
 }
 
-export const MedicationCard = ({ medication, log, onMarkTaken, onEdit, onDelete, showActions = false }: MedicationCardProps) => {
-  const isTaken = log.status === 'taken';
-  const isPending = log.status === 'pending';
+export const MedicationCard = ({ 
+  medication, 
+  log, 
+  status, 
+  scheduledTime, 
+  onMarkTaken, 
+  onEdit, 
+  onDelete, 
+  showActions = false 
+}: MedicationCardProps) => {
+  const cardStatus = status || log?.status || 'pending';
+  const cardTime = scheduledTime || log?.scheduled_time || '--:--';
+  const cardLogId = log?.id;
+
+  const isTaken = cardStatus === 'taken';
+  const isPending = cardStatus === 'pending';
 
   return (
     <Card className={cn(
@@ -38,18 +53,18 @@ export const MedicationCard = ({ medication, log, onMarkTaken, onEdit, onDelete,
              isTaken ? "bg-success/20" : "bg-primary/10"
            )}>
              {medication.form_type === 'injection' ? (
-               <Syringe className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             ) : medication.form_type === 'liquid' ? (
-               <Droplets className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             ) : medication.form_type === 'patch' ? (
-               <Bandage className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             ) : medication.form_type === 'inhaler' ? (
-               <Wind className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             ) : medication.form_type === 'other' ? (
-               <Microscope className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             ) : (
-               <Pill className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
-             )}
+                <Syringe className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              ) : medication.form_type === 'liquid' ? (
+                <Droplets className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              ) : medication.form_type === 'patch' ? (
+                <Bandage className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              ) : medication.form_type === 'inhaler' ? (
+                <Wind className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              ) : medication.form_type === 'other' ? (
+                <Microscope className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              ) : (
+                <Pill className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+              )}
            </div>
           
           <div className="flex-1 min-w-0">
@@ -57,7 +72,7 @@ export const MedicationCard = ({ medication, log, onMarkTaken, onEdit, onDelete,
             <p className="text-body text-muted-foreground">{medication.dosage}</p>
             <div className="flex items-center gap-1 mt-1 text-label text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>{log.scheduled_time}</span>
+              <span>{cardTime}</span>
             </div>
           </div>
 
@@ -93,7 +108,7 @@ export const MedicationCard = ({ medication, log, onMarkTaken, onEdit, onDelete,
               <Button
                 variant="success"
                 size="lg"
-                onClick={() => onMarkTaken(log.id)}
+                onClick={() => onMarkTaken(cardLogId, medication.id, cardTime)}
                 className="shrink-0"
               >
                 <Check className="h-5 w-5" />

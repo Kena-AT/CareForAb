@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS public.medication_logs (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'taken', 'missed', 'skipped')),
   taken_at TIMESTAMPTZ,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (medication_id, scheduled_time, date)
 );
 
 -- 4. BLOOD SUGAR READINGS

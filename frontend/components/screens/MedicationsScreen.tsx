@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -24,7 +23,7 @@ interface MedicationsScreenProps {
   schedules: MedicationSchedule[];
   todaySchedule: TodayScheduleItem[];
   isMedsLoading?: boolean;
-  onMarkMedicationTaken: (_logId: string) => void;
+  onMarkMedicationTaken: (logId?: string, medicationId?: string, scheduledTime?: string) => void;
   onAddMedication: (
     _medication: Omit<Medication, 'id' | 'created_at' | 'is_active'>,
     _schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
@@ -105,9 +104,9 @@ export const MedicationsScreen = ({
       m.inventory_count <= m.refill_threshold
     ), [medications]);
 
-  const handleMarkTaken = async (logId: string) => {
-    if (logId) {
-      onMarkMedicationTaken(logId);
+  const handleMarkTaken = async (logId?: string, medicationId?: string, scheduledTime?: string) => {
+    if (onMarkMedicationTaken) {
+      onMarkMedicationTaken(logId, medicationId, scheduledTime);
     }
   };
 
@@ -244,15 +243,19 @@ export const MedicationsScreen = ({
                           </div>
 
                           {/* Action */}
-                          {!isTaken && item.log_id && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleMarkTaken(item.log_id!)}
-                              className="bg-[#004c56] hover:bg-[#003a42] text-white rounded-xl h-9 px-5 shrink-0 font-bold text-xs shadow-sm"
-                            >
-                              Mark as Taken
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!isTaken && (
+                              <Button
+                                size="sm"
+                                variant="success"
+                                onClick={() => handleMarkTaken(item.log_id, item.medication_id, item.scheduled_time)}
+                                className="font-bold flex items-center gap-2 rounded-xl h-9 px-5 text-xs shadow-sm"
+                              >
+                                <CheckCircle2 size={16} />
+                                Take
+                              </Button>
+                            )}
+                          </div>
                         </motion.div>
                       );
                     })

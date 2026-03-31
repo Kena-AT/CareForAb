@@ -192,45 +192,45 @@ export const useHealthData = () => {
     setTodaySchedule(scheduleItems);
   };
 
-  const markMedicationTaken = async (logId: string) => {
+  const markMedicationTaken = async (logId?: string, medicationId?: string, scheduledTime?: string) => {
+    if (!user) return;
+    
+    // Use local today date
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+
     try {
-      const { data: logData, error } = await supabase
+      console.log('[useHealthData] Marking medication as taken:', { logId, medicationId, scheduledTime });
+      
+      // If we don't have a logId but we have med info, we upsert
+      // This handles "Day 2+" cases where a log hasn't been created yet for the scheduled dose
+      const { data, error } = await supabase
         .from('medication_logs')
-        .update({ status: 'taken', taken_at: new Date().toISOString() })
-        .eq('id', logId)
-        .select('medication_id, status')
+        .upsert({
+          ...(logId ? { id: logId } : {}),
+          user_id: user.id,
+          medication_id: medicationId || '',
+          scheduled_time: scheduledTime || '',
+          status: 'taken',
+          taken_at: new Date().toISOString(),
+          date: today
+        }, { 
+          onConflict: 'medication_id,scheduled_time,date',
+          ignoreDuplicates: false 
+        })
+        .select()
         .single();
 
       if (error) throw error;
 
-      // Inventory is now decremented by database trigger when status changes from pending to taken
-      // Just update local state to reflect the change
-      setMedicationLogs(logs =>
-        logs.map(log =>
-          log.id === logId ? { ...log, status: 'taken' as const, taken_at: new Date().toISOString() } : log
-        )
-      );
-      
-      // Refresh medications to get updated inventory count from trigger
-      const { data: updatedMed } = await supabase
-        .from('medications')
-        .select('id, inventory_count')
-        .eq('id', logData.medication_id)
-        .single();
-        
-      if (updatedMed) {
-        setMedications(prev => 
-          prev.map(m => m.id === updatedMed.id ? { ...m, inventory_count: updatedMed.inventory_count } : m)
-        );
-      }
-      
-      // Refresh today's schedule to reflect changes
+      // Inventory is decremented by DB trigger
+      // Just refresh to capture all side effects
       await fetchData();
       
       toast.success('Medication marked as taken!');
     } catch (error: any) {
       console.error('Error marking medication:', error);
-      toast.error('Failed to update medication');
+      toast.error('Failed to update medication status');
     }
   };
 

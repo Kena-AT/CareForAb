@@ -26,6 +26,7 @@ export default function DashboardPage() {
     userName, 
     isMedsLoading, 
     isReadingsLoading, 
+    todaySchedule,
     refetch 
   } = useHealth();
 
@@ -40,6 +41,7 @@ export default function DashboardPage() {
     <DashboardScreen
       medications={medications}
       medicationLogs={medicationLogs}
+      todaySchedule={todaySchedule}
       bloodSugarReadings={bloodSugarReadings}
       bloodPressureReadings={bloodPressureReadings}
       isMedsLoading={isMedsLoading}

@@ -7,7 +7,7 @@ import { getTimeBasedGreeting } from '@/lib/greeting';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Header } from '@/components/layout/Header';
-import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading } from '@/types/health';
+import { Medication, MedicationLog, BloodSugarReading, BloodPressureReading, TodayScheduleItem } from '@/types/health';
 import { MedicationCard } from '@/components/health/MedicationCard';
 import { BloodSugarCard, BloodPressureCard } from '@/components/health/ReadingCard';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,11 +21,12 @@ const LogStepsModal = dynamic(() => import('@/components/health/LogStepsModal').
 interface DashboardScreenProps {
   medications: Medication[];
   medicationLogs: MedicationLog[];
+  todaySchedule: TodayScheduleItem[];
   bloodSugarReadings: BloodSugarReading[];
   bloodPressureReadings: BloodPressureReading[];
   isMedsLoading?: boolean;
   isReadingsLoading?: boolean;
-  onMarkMedicationTaken: (logId: string) => void;
+  onMarkMedicationTaken: (logId?: string, medicationId?: string, scheduledTime?: string) => void;
   onAddBloodSugar: (reading: Omit<BloodSugarReading, 'id' | 'recorded_at'>) => void;
   onAddBloodPressure: (reading: Omit<BloodPressureReading, 'id' | 'recorded_at'>) => void;
   onUpdateBloodSugar?: (readingId: string, updates: Partial<Omit<BloodSugarReading, 'id' | 'recorded_at'>>) => Promise<void>;
@@ -47,6 +48,7 @@ interface DashboardScreenProps {
 export const DashboardScreen = ({
   medications,
   medicationLogs,
+  todaySchedule,
   bloodSugarReadings,
   bloodPressureReadings,
   isMedsLoading = false,
@@ -80,12 +82,7 @@ export const DashboardScreen = ({
     day: 'numeric'
   }), []);
 
-  const todayLogs = medicationLogs.filter(log => {
-    const logDate = new Date(log.date).toDateString();
-    return logDate === new Date().toDateString();
-  });
-
-  const takenMeds = todayLogs.filter(log => log.status === 'taken');
+  const takenMeds = useMemo(() => todaySchedule.filter(item => item.status === 'taken'), [todaySchedule]);
 
   // Animation variants
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -204,7 +201,7 @@ export const DashboardScreen = ({
                  <div className="flex items-end justify-between gap-4">
                     <div className="flex items-end gap-2">
                        <span className="text-5xl font-black leading-none">{takenMeds.length}</span>
-                       <span className="text-sm font-bold opacity-70 mb-1">/ {todayLogs.length} Taken</span>
+                       <span className="text-sm font-bold opacity-70 mb-1">/ {todaySchedule.length} Taken</span>
                     </div>
                     <Button 
                       onClick={() => onNavigate('medications')}
@@ -235,22 +232,28 @@ export const DashboardScreen = ({
                     <MedCardSkeleton />
                     <MedCardSkeleton />
                   </>
-                ) : todayLogs.length > 0 ? (
-                  todayLogs
+                ) : todaySchedule.length > 0 ? (
+                  todaySchedule
                     .sort((a, b) => {
                       if (a.status === 'pending' && b.status !== 'pending') return -1;
                       if (a.status !== 'pending' && b.status === 'pending') return 1;
                       return a.scheduled_time.localeCompare(b.scheduled_time);
                     })
-                    .map((log) => {
-                    const medication = medications.find(m => m.id === log.medication_id);
-                    if (!medication) return null;
+                    .map((item) => {
                     return (
-                      <motion.div key={log.id} whileHover={{ x: 4 }} transition={{ type: 'spring', stiffness: 300 }}>
+                      <motion.div key={`${item.medication_id}-${item.scheduled_time}`} whileHover={{ x: 4 }} transition={{ type: 'spring', stiffness: 300 }}>
                         <MedicationCard
-                          medication={medication}
-                          log={log}
-                          onMarkTaken={onMarkMedicationTaken}
+                          medication={{
+                            id: item.medication_id,
+                            name: item.medication_name,
+                            dosage: item.dosage,
+                            form_type: item.form_type,
+                            inventory_count: item.inventory_count,
+                            refill_threshold: item.refill_threshold,
+                          } as any}
+                          status={item.status as any}
+                          scheduledTime={item.scheduled_time}
+                          onMarkTaken={() => onMarkMedicationTaken(item.log_id, item.medication_id, item.scheduled_time)}
                         />
                       </motion.div>
                     );
