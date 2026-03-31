@@ -670,6 +670,7 @@ export const useHealthData = () => {
     addMedication, // Now takes (medication, schedule)
     deleteMedication,
     updateMedication,
+    updateMedicationSchedule,
     addBloodSugarReading,
     addBloodPressureReading,
     addOxygenReading,

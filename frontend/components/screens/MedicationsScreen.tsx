@@ -17,10 +17,11 @@ const AddMedicationModal = dynamic(() => import('@/components/health/AddMedicati
 const InventoryModal = dynamic(() => import('@/components/health/InventoryModal').then(m => m.InventoryModal), { ssr: false });
 const RegisterRxModal = dynamic(() => import('@/components/health/RegisterRxModal').then(m => m.RegisterRxModal), { ssr: false });
 const DeleteConfirmationModal = dynamic(() => import('@/components/health/DeleteConfirmationModal').then(m => m.DeleteConfirmationModal), { ssr: false });
-const EditMedicationModal = dynamic(() => import('@/components/health/EditMedicationModal').then(m => m.EditMedicationModal), { ssr: false });
+import { EditMedicationModal } from '@/components/health/EditMedicationModal';
 
 interface MedicationsScreenProps {
   medications: Medication[];
+  schedules: MedicationSchedule[];
   todaySchedule: TodayScheduleItem[];
   isMedsLoading?: boolean;
   onMarkMedicationTaken: (_logId: string) => void;
@@ -29,6 +30,7 @@ interface MedicationsScreenProps {
     _schedule: Omit<MedicationSchedule, 'id' | 'created_at' | 'is_active' | 'medication_id' | 'user_id'>
   ) => Promise<any>;
   onUpdateMedication?: (_medicationId: string, _updates: Partial<Medication>) => Promise<any>;
+  onUpdateSchedule?: (_scheduleId: string, _updates: Partial<MedicationSchedule>) => Promise<any>;
   onDeleteMedication?: (_medicationId: string) => Promise<void>;
   onNotificationsClick?: () => void;
   onSettingsClick?: () => void;
@@ -62,11 +64,13 @@ const formatDate = (date: Date) =>
 
 export const MedicationsScreen = ({
   medications,
+  schedules,
   todaySchedule,
   isMedsLoading = false,
   onMarkMedicationTaken,
   onAddMedication,
   onUpdateMedication,
+  onUpdateSchedule,
   onDeleteMedication,
   onRefresh,
   onSettingsClick,
@@ -79,7 +83,12 @@ export const MedicationsScreen = ({
   const [editMedication, setEditMedication] = useState<Medication | null>(null);
   const { addNotification } = useNotifications();
 
-  // Use todaySchedule directly from props - computed from medications + schedules
+  // Find schedule for editing
+  const targetSchedule = useMemo(() => {
+    if (!editMedication) return null;
+    return schedules.find(s => s.medication_id === editMedication.id) || null;
+  }, [editMedication, schedules]);
+
   const takenToday = todaySchedule.filter(s => s.status === 'taken').length;
   const adherencePercent = todaySchedule.length > 0
     ? Math.round((takenToday / todaySchedule.length) * 100)
@@ -471,11 +480,13 @@ export const MedicationsScreen = ({
 
       {/* Edit Medication Modal */}
       <AnimatePresence>
-        {editMedication && onUpdateMedication && (
+        {editMedication && onUpdateMedication && onUpdateSchedule && (
           <EditMedicationModal
             medication={editMedication}
+            initialSchedule={targetSchedule}
             onClose={() => setEditMedication(null)}
             onUpdate={onUpdateMedication}
+            onUpdateSchedule={onUpdateSchedule}
           />
         )}
       </AnimatePresence>
