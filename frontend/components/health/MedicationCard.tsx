@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, Pill, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Check, Clock, Pill, Edit, Trash2, MoreVertical, Syringe, Droplets, Bandage, Wind, Microscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -34,14 +34,23 @@ export const MedicationCard = ({ medication, log, onMarkTaken, onEdit, onDelete,
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           <div className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-full",
-            isTaken ? "bg-success/20" : "bg-primary/10"
-          )}>
-            <Pill className={cn(
-              "h-7 w-7",
-              isTaken ? "text-success" : "text-primary"
-            )} />
-          </div>
+             "flex h-14 w-14 items-center justify-center rounded-full",
+             isTaken ? "bg-success/20" : "bg-primary/10"
+           )}>
+             {medication.form_type === 'injection' ? (
+               <Syringe className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             ) : medication.form_type === 'liquid' ? (
+               <Droplets className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             ) : medication.form_type === 'patch' ? (
+               <Bandage className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             ) : medication.form_type === 'inhaler' ? (
+               <Wind className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             ) : medication.form_type === 'other' ? (
+               <Microscope className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             ) : (
+               <Pill className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+             )}
+           </div>
           
           <div className="flex-1 min-w-0">
             <h3 className="text-title truncate">{medication.name}</h3>

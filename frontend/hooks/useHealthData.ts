@@ -73,7 +73,7 @@ export const useHealthData = () => {
       setIsMedsLoading(true);
       
       const [medsRes, schedulesRes, logsRes] = await Promise.all([
-        supabase.from('medications').select('id,name,dosage,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('medications').select('id,name,dosage,form_type,notes,doctor,inventory_count,refill_threshold,is_active,created_at').eq('user_id', user.id).eq('is_active', true).order('created_at', { ascending: false }),
         (supabase.from('medication_schedules' as any) as any).select('id,medication_id,frequency,times,start_date,end_date,is_indefinite,is_active').eq('user_id', user.id).eq('is_active', true),
         supabase.from('medication_logs').select('id,medication_id,scheduled_time,status,taken_at,date').eq('user_id', user.id).eq('date', today),
       ]);
@@ -82,13 +82,13 @@ export const useHealthData = () => {
       if (schedulesRes.error) throw schedulesRes.error;
       if (logsRes.error) throw logsRes.error;
 
-      setMedications(medsRes.data as Medication[] || []);
+      setMedications((medsRes.data as unknown as Medication[]) || []);
       setSchedules((schedulesRes.data as unknown as MedicationSchedule[]) || []);
       setMedicationLogs(logsRes.data as MedicationLog[] || []);
       
       computeTodaySchedule(
-        medsRes.data as Medication[] || [],
-        schedulesRes.data as MedicationSchedule[] || [],
+        medsRes.data as unknown as Medication[] || [],
+        schedulesRes.data as unknown as MedicationSchedule[] || [],
         logsRes.data as MedicationLog[] || [],
         today
       );
@@ -174,6 +174,7 @@ export const useHealthData = () => {
           medication_id: medication.id,
           medication_name: medication.name,
           dosage: medication.dosage,
+          form_type: medication.form_type,
           doctor: medication.doctor,
           scheduled_time: time,
           status: (existingLog?.status as any) || 'pending',
@@ -248,6 +249,7 @@ export const useHealthData = () => {
           user_id: user.id,
           name: medication.name,
           dosage: medication.dosage,
+          form_type: medication.form_type,
           notes: medication.notes,
           doctor: medication.doctor,
           prescription_number: medication.prescription_number,
@@ -350,6 +352,33 @@ export const useHealthData = () => {
     } catch (error: any) {
       console.error('Error updating medication:', error);
       toast.error('Failed to update medication');
+      throw error;
+    }
+  };
+
+  const updateMedicationSchedule = async (scheduleId: string, updates: Partial<MedicationSchedule>) => {
+    try {
+      const { data, error } = await supabase
+        .from('medication_schedules')
+        .update(updates)
+        .eq('id', scheduleId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSchedules(prev => 
+        prev.map(s => s.id === scheduleId ? { ...s, ...data } as MedicationSchedule : s)
+      );
+      
+      // Also refresh to update today's schedule
+      await fetchData();
+      
+      toast.success('Schedule updated');
+      return data;
+    } catch (error: any) {
+      console.error('Error updating schedule:', error);
+      toast.error('Failed to update medication schedule');
       throw error;
     }
   };

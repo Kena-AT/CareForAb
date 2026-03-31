@@ -1,9 +1,22 @@
+export type MedicationFormType = 'tablet' | 'capsule' | 'injection' | 'liquid' | 'patch' | 'inhaler' | 'other';
+
+export const FORM_TYPE_META: Record<MedicationFormType, { label: string; emoji: string; unit: string; dosagePlaceholder: string }> = {
+  tablet:    { label: 'Tablet',    emoji: '💊', unit: 'tablets',  dosagePlaceholder: 'e.g. 500mg' },
+  capsule:   { label: 'Capsule',   emoji: '💊', unit: 'capsules', dosagePlaceholder: 'e.g. 250mg' },
+  injection: { label: 'Injection', emoji: '💉', unit: 'vials',    dosagePlaceholder: 'e.g. 5mL / 1 vial' },
+  liquid:    { label: 'Liquid',    emoji: '🧴', unit: 'mL',       dosagePlaceholder: 'e.g. 10mL' },
+  patch:     { label: 'Patch',     emoji: '🩹', unit: 'patches',  dosagePlaceholder: 'e.g. 5mg/24hr' },
+  inhaler:   { label: 'Inhaler',   emoji: '💨', unit: 'doses',    dosagePlaceholder: 'e.g. 100mcg/dose' },
+  other:     { label: 'Other',     emoji: '🔬', unit: 'units',    dosagePlaceholder: 'e.g. 1 unit' },
+};
+
 // Database types matching Supabase schema
 export interface Medication {
   id: string;
   user_id?: string;
   name: string;
   dosage: string;
+  form_type?: MedicationFormType | null;
   notes?: string | null;
   doctor?: string | null;
   prescription_number?: string | null;
@@ -49,6 +62,7 @@ export interface TodayScheduleItem {
   medication_id: string;
   medication_name: string;
   dosage: string;
+  form_type?: MedicationFormType | null;
   doctor?: string | null;
   scheduled_time: string;
   status: 'pending' | 'taken' | 'missed' | 'skipped';

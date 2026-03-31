@@ -6,7 +6,7 @@ import { Plus, Pill, MoreVertical, CheckCircle2, AlertCircle, Sun, Moon, Sunset,
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Medication, MedicationSchedule, TodayScheduleItem } from '@/types/health';
+import { Medication, MedicationSchedule, TodayScheduleItem, FORM_TYPE_META } from '@/types/health';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -145,9 +145,15 @@ export const MedicationsScreen = ({
               variant="outline"
               size="icon"
               onClick={onRefresh}
-              className="rounded-xl hover:bg-slate-50 text-slate-400 border-none shadow-sm h-11 w-11"
+              disabled={isMedsLoading}
+              className="rounded-xl hover:bg-slate-50 text-slate-400 border-none shadow-sm h-11 w-11 disabled:opacity-50"
             >
-              <RefreshCcw size={18} />
+              <motion.div
+                animate={isMedsLoading ? { rotate: 360 } : { rotate: 0 }}
+                transition={isMedsLoading ? { repeat: Infinity, duration: 1, ease: "linear" } : { duration: 0.2 }}
+              >
+                <RefreshCcw size={18} />
+              </motion.div>
             </Button>
             <Button
               onClick={() => setShowAddModal(true)}
@@ -384,7 +390,7 @@ export const MedicationsScreen = ({
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inventory</span>
                             <span className={`text-xs font-bold ${isLowStock ? 'text-amber-600' : 'text-slate-600'}`}>
-                              {med.inventory_count} pills
+                              {med.inventory_count} {med.form_type ? FORM_TYPE_META[med.form_type].unit : 'pills'}
                             </span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 rounded-full">

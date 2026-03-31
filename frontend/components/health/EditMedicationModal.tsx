@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Medication } from '@/types/health';
+import { Medication, MedicationFormType, FORM_TYPE_META } from '@/types/health';
 import { motion } from 'framer-motion';
 
 interface EditMedicationModalProps {
@@ -16,6 +16,9 @@ interface EditMedicationModalProps {
 }
 
 export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedicationModalProps) => {
+  const [formType, setFormType] = useState<MedicationFormType>(medication.form_type || 'tablet');
+  const meta = FORM_TYPE_META[formType];
+
   const [name, setName] = useState(medication.name);
   const [dosage, setDosage] = useState(medication.dosage);
   const [notes, setNotes] = useState(medication.notes || '');
@@ -31,6 +34,7 @@ export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedic
       await onUpdate(medication.id, {
         name: name.trim(),
         dosage: dosage.trim(),
+        form_type: formType,
         notes: notes.trim() || null,
         doctor: doctor.trim() || null,
       });
@@ -55,7 +59,7 @@ export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedic
         initial={{ opacity: 0, scale: 0.95, y: 20 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
         exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-        className="w-full max-w-lg bg-white rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col"
+        className="w-full max-w-lg bg-white rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]"
       >
         {/* Header */}
         <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-20">
@@ -73,8 +77,30 @@ export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedic
            </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10 overflow-y-auto">
+        <form id="edit-medication-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-10">
            <div className="space-y-8">
+              {/* Form Type Selector */}
+              <div className="space-y-4">
+                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Medication Form</Label>
+                 <div className="grid grid-cols-4 gap-2">
+                   {(Object.keys(FORM_TYPE_META) as MedicationFormType[]).map((type) => (
+                     <button
+                       key={type}
+                       type="button"
+                       onClick={() => setFormType(type)}
+                       className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all font-bold text-xs ${
+                         formType === type
+                           ? 'border-[#004c56] bg-[#004c5610] text-[#004c56]'
+                           : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                       }`}
+                     >
+                       <span className="text-xl">{FORM_TYPE_META[type].emoji}</span>
+                       <span>{FORM_TYPE_META[type].label}</span>
+                     </button>
+                   ))}
+                 </div>
+              </div>
+
               {/* Name & Dosage */}
               <div className="space-y-4">
                  <Label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Medication Identity</Label>
@@ -92,13 +118,14 @@ export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedic
                     <div className="relative">
                       <Pill size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                       <Input 
-                        placeholder="Dosage (e.g. 500mg)" 
+                        placeholder={meta.dosagePlaceholder}
                         value={dosage} 
                         onChange={(e) => setDosage(e.target.value)} 
                         className="h-16 rounded-[24px] bg-slate-50 border-none pl-14 pr-6 font-bold text-lg focus:ring-2 focus:ring-[#004c5622]" 
                         required 
                       />
                     </div>
+                    <p className="text-xs text-slate-400 ml-1">Inventory tracked in <strong>{meta.unit}</strong></p>
                  </div>
               </div>
 
@@ -132,18 +159,21 @@ export const EditMedicationModal = ({ medication, onClose, onUpdate }: EditMedic
               </div>
            </div>
 
-           <div className="flex gap-4 pt-4 pb-2">
-              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-16 rounded-[24px] font-black text-slate-400 hover:bg-slate-50 uppercase tracking-widest text-xs">Cancel</Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || !name.trim() || !dosage.trim()} 
-                className="flex-1 h-16 rounded-[24px] font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-2xl shadow-[#004c5633] gap-3 uppercase tracking-widest text-xs"
-              >
-                 {isSubmitting ? 'Updating...' : 'Save Changes'}
-                 <Save size={18} />
-              </Button>
-           </div>
         </form>
+
+        {/* Footer - Fixed */}
+        <div className="px-10 py-8 border-t border-slate-50 flex gap-4 bg-white shrink-0 mt-auto">
+           <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-16 rounded-[24px] font-black text-slate-400 hover:bg-slate-50 uppercase tracking-widest text-xs">Cancel</Button>
+           <Button 
+             form="edit-medication-form"
+             type="submit" 
+             disabled={isSubmitting || !name.trim() || !dosage.trim()} 
+             className="flex-1 h-16 rounded-[24px] font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-2xl shadow-[#004c5633] gap-3 uppercase tracking-widest text-xs"
+           >
+              {isSubmitting ? 'Updating...' : 'Save Changes'}
+              <Save size={18} />
+           </Button>
+        </div>
       </motion.div>
     </div>
   );

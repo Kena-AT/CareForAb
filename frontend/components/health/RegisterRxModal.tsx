@@ -129,10 +129,10 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-xl bg-white rounded-[32px] shadow-2xl relative max-h-[90vh] flex flex-col"
+        className="w-full max-w-xl bg-white rounded-[32px] shadow-2xl relative max-h-[85vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-[#004c56] to-[#006d7a] text-white">
+        {/* Header - Fixed */}
+        <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-[#004c56] to-[#006d7a] text-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
               <FileText size={24} />
@@ -147,7 +147,7 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
+        <form id="register-rx-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Prescription Number */}
           <div className="space-y-2">
             <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">
@@ -377,25 +377,27 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="flex-1 h-12 rounded-2xl font-black text-slate-400 hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !name.trim() || !dosage.trim()}
-              className="flex-1 h-12 rounded-2xl font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633]"
-            >
-              {isSubmitting ? 'Registering...' : 'Register Rx'}
-            </Button>
-          </div>
         </form>
+
+        {/* Footer - Fixed */}
+        <div className="p-6 border-t border-slate-50 flex gap-4 bg-white shrink-0 mt-auto">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="flex-1 h-12 rounded-2xl font-black text-slate-400 hover:bg-slate-50"
+          >
+            Cancel
+          </Button>
+          <Button
+            form="register-rx-form"
+            type="submit"
+            disabled={isSubmitting || !name.trim() || !dosage.trim()}
+            className="flex-1 h-12 rounded-2xl font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633]"
+          >
+            {isSubmitting ? 'Registering...' : 'Register Rx'}
+          </Button>
+        </div>
       </motion.div>
     </div>
   );

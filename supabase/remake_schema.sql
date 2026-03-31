@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.medications (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   dosage TEXT NOT NULL,
+  form_type TEXT DEFAULT 'tablet' CHECK (form_type IN ('tablet','capsule','injection','liquid','patch','inhaler','other')),
   frequency TEXT NOT NULL,
   times TEXT[] NOT NULL DEFAULT '{}',
   notes TEXT,

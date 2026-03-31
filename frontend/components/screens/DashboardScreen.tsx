@@ -126,6 +126,15 @@ export const DashboardScreen = ({
                 Log Glucose
               </Button>
               <Button 
+                onClick={() => setAddModal('blood_pressure')}
+                className="bg-[#dfe3e3ff] hover:bg-[#d0d6d6] text-slate-700 rounded-[20px] h-14 px-8 font-black flex items-center gap-4"
+              >
+                <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-slate-700 shadow-sm">
+                   <Heart size={20} />
+                </div>
+                Log Pressure
+              </Button>
+              <Button 
                 onClick={() => setShowStepsModal(true)}
                 className="bg-[#dfe3e3ff] hover:bg-[#d0d6d6] text-slate-700 rounded-[20px] h-14 px-8 font-black flex items-center gap-4"
               >

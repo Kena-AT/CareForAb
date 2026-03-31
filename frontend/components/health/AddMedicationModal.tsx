@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Medication, MedicationSchedule } from '@/types/health';
+import { Medication, MedicationSchedule, MedicationFormType, FORM_TYPE_META } from '@/types/health';
 import { motion } from 'framer-motion';
 import { checkMedicationSafety } from '@/services/gemini';
 import { toast } from 'sonner';
@@ -21,6 +21,10 @@ interface AddMedicationModalProps {
 }
 
 export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) => {
+  // Form type
+  const [formType, setFormType] = useState<MedicationFormType>('tablet');
+  const meta = FORM_TYPE_META[formType];
+
   // Medication fields
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -96,6 +100,7 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
       const medicationData = {
         name: name.trim(),
         dosage: dosage.trim(),
+        form_type: formType,
         notes: notes.trim() || null,
         doctor: doctor.trim() || null,
       };
@@ -165,10 +170,11 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-[#004c5633] backdrop-blur-sm" />
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl relative max-h-[90vh] flex flex-col">
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-20">
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl relative max-h-[85vh] flex flex-col">
+        {/* Header - Fixed */}
+        <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#f0fdfaff] text-[#004c56ff] flex items-center justify-center"><Pill size={24} /></div>
+              <div className="w-12 h-12 rounded-2xl bg-[#f0fdfaff] text-[#004c56ff] flex items-center justify-center shadow-inner"><Pill size={24} /></div>
               <div>
                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Add Medication</h3>
                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Therapy Track</p>
@@ -177,16 +183,40 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-50 text-slate-400"><X size={20} /></Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8 overflow-y-auto">
+        <form id="add-medication-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 pt-6 space-y-8">
            <div className="space-y-6">
               <div className="flex items-center gap-2 text-slate-500 mb-2"><Pill size={16} /><span className="text-xs font-black uppercase tracking-widest">Medication Information</span></div>
+              
+              {/* Form Type Selector */}
+              <div className="space-y-3">
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Medication Form</Label>
+                 <div className="grid grid-cols-4 gap-2">
+                   {(Object.keys(FORM_TYPE_META) as MedicationFormType[]).map((type) => (
+                     <button
+                       key={type}
+                       type="button"
+                       onClick={() => setFormType(type)}
+                       className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all font-bold text-xs ${
+                         formType === type
+                           ? 'border-[#004c56] bg-[#004c5610] text-[#004c56]'
+                           : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                       }`}
+                     >
+                       <span className="text-xl">{FORM_TYPE_META[type].emoji}</span>
+                       <span>{FORM_TYPE_META[type].label}</span>
+                     </button>
+                   ))}
+                 </div>
+              </div>
+
               <div className="space-y-3">
                  <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Medication Name</Label>
                  <Input placeholder="e.g. Metformin" value={name} onChange={(e) => setName(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold" required />
               </div>
               <div className="space-y-3">
-                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Dosage Form</Label>
-                 <Input placeholder="e.g. 500mg Tablet" value={dosage} onChange={(e) => setDosage(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold" required />
+                 <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Dosage / Strength</Label>
+                 <Input placeholder={meta.dosagePlaceholder} value={dosage} onChange={(e) => setDosage(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none px-4 font-bold" required />
+                 <p className="text-xs text-slate-400 ml-1">Inventory will be tracked in <strong>{meta.unit}</strong></p>
               </div>
               <div className="space-y-3">
                  <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Prescribing Doctor (Optional)</Label>
@@ -264,17 +294,23 @@ export const AddMedicationModal = ({ onClose, onAdd }: AddMedicationModalProps) 
               <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Clinical Notes (Optional)</Label>
               <Textarea placeholder="Special instructions..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="rounded-2xl bg-slate-50 border-none p-4 font-medium resize-none" />
            </div>
-
-           <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2 z-20">
-              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50">Cancel</Button>
-              <Button type="submit" disabled={isSubmitting || !name.trim() || !dosage.trim()} className="flex-1 h-14 rounded-2xl font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2">
-                 {isSubmitting ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Calendar size={18} /></motion.div>
-                 ) : <Save size={18} />}
-                 {isSubmitting ? 'Creating...' : 'Create Medication'}
-              </Button>
-           </div>
         </form>
+
+        {/* Footer - Fixed */}
+        <div className="px-8 py-6 border-t border-slate-50 flex gap-4 bg-white shrink-0 mt-auto">
+           <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50">Cancel</Button>
+           <Button 
+             form="add-medication-form"
+             type="submit" 
+             disabled={isSubmitting || !name.trim() || !dosage.trim()} 
+             className="flex-1 h-14 rounded-2xl font-black bg-[#004c56] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2"
+           >
+              {isSubmitting ? (
+                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Calendar size={18} /></motion.div>
+              ) : <Save size={18} />}
+              {isSubmitting ? 'Creating...' : 'Create Medication'}
+           </Button>
+        </div>
       </motion.div>
     </div>
   );

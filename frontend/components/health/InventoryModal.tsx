@@ -5,7 +5,7 @@ import { X, Package, AlertTriangle, Plus, Minus, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Medication } from '@/types/health';
+import { Medication, FORM_TYPE_META } from '@/types/health';
 import { motion } from 'framer-motion';
 
 interface InventoryModalProps {
@@ -15,6 +15,9 @@ interface InventoryModalProps {
 }
 
 export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModalProps) => {
+  const unit = medication.form_type ? FORM_TYPE_META[medication.form_type].unit : 'units';
+  const formEmoji = medication.form_type ? FORM_TYPE_META[medication.form_type].emoji : '💊';
+
   const [inventoryCount, setInventoryCount] = useState<number | ''>(medication.inventory_count ?? '');
   const [refillThreshold, setRefillThreshold] = useState<number | ''>(medication.refill_threshold ?? 10);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,10 +76,10 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden relative"
+        className="w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden relative flex flex-col max-h-[85vh]"
       >
-        {/* Header */}
-        <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white">
+        {/* Header - Fixed */}
+        <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#f0fdfaff] text-[#004c56ff] flex items-center justify-center">
               <Package size={24} />
@@ -91,11 +94,11 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form id="inventory-form" onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Current Stock */}
           <div className="space-y-3">
             <Label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">
-              Current Stock (pills/units)
+              Current Stock <span className="normal-case font-medium text-slate-500">({formEmoji} in {unit})</span>
             </Label>
             <div className="flex items-center gap-3">
               <Button
@@ -155,7 +158,7 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
                     <div>
                       <p className="font-bold text-amber-800 text-sm">Low Stock Alert</p>
                       <p className="text-xs text-amber-600">
-                        {inventoryCount} units remaining (threshold: {refillThreshold})
+                        {inventoryCount} {unit} remaining (threshold: {refillThreshold})
                       </p>
                     </div>
                   </>
@@ -165,7 +168,7 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
                     <div>
                       <p className="font-bold text-emerald-800 text-sm">Stock Level Good</p>
                       <p className="text-xs text-emerald-600">
-                        {inventoryCount} units remaining (threshold: {refillThreshold})
+                        {inventoryCount} {unit} remaining (threshold: {refillThreshold})
                       </p>
                     </div>
                   </>
@@ -174,30 +177,32 @@ export const InventoryModal = ({ medication, onClose, onUpdate }: InventoryModal
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 h-14 rounded-2xl font-black bg-[#004c56ff] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2"
-            >
-              {isSubmitting ? (
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-                  <Save size={18} />
-                </motion.div>
-              ) : <Save size={18} />}
-              {isSubmitting ? 'Saving...' : 'Save Inventory'}
-            </Button>
-          </div>
         </form>
+
+        {/* Footer - Fixed */}
+        <div className="p-6 border-t border-slate-50 flex gap-4 bg-white shrink-0 mt-auto">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="flex-1 h-14 rounded-2xl font-black text-slate-400 hover:bg-slate-50"
+          >
+            Cancel
+          </Button>
+          <Button
+            form="inventory-form"
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 h-14 rounded-2xl font-black bg-[#004c56ff] hover:bg-[#003a42] text-white shadow-xl shadow-[#004c5633] gap-2"
+          >
+            {isSubmitting ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                <Save size={18} />
+              </motion.div>
+            ) : <Save size={18} />}
+            {isSubmitting ? 'Saving...' : 'Save Inventory'}
+          </Button>
+        </div>
       </motion.div>
     </div>
   );

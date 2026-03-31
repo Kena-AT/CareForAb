@@ -170,6 +170,7 @@ export type Database = {
           created_at: string
           doctor: string | null
           dosage: string
+          form_type: string | null
           frequency: string
           id: string
           inventory_count: number | null
@@ -186,6 +187,7 @@ export type Database = {
           created_at?: string
           doctor?: string | null
           dosage: string
+          form_type?: string | null
           frequency: string
           id?: string
           inventory_count?: number | null
@@ -202,6 +204,7 @@ export type Database = {
           created_at?: string
           doctor?: string | null
           dosage?: string
+          form_type?: string | null
           frequency?: string
           id?: string
           inventory_count?: number | null
