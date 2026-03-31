@@ -254,11 +254,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Get current session from Supabase with a 10s timeout protective race
+        // Get current session from Supabase with a 30s timeout protective race (increased from 10s)
         console.log("[AuthContext] Fetching initial session...");
         const sessionPromise = supabase.auth.getSession();
         const sessionTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth init timeout')), 10000)
+          setTimeout(() => reject(new Error('Auth init timeout')), 30000)
         );
 
         const { data: { session } } = await Promise.race([sessionPromise, sessionTimeout]) as any;
@@ -267,8 +267,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log(`[AuthContext] Session retrieved: ${session ? 'Active' : 'None'}`);
           await syncAuthState(session);
         }
-      } catch (error) {
-        console.error("[AuthContext] initAuth error or timeout:", error);
+      } catch (error: any) {
+        if (error.message === 'Auth init timeout') {
+          console.warn("[AuthContext] session check timed out after 30s. Proceeding to initialized state for better UX.");
+        } else {
+          console.error("[AuthContext] initAuth failed with error:", error);
+        }
+        
         // On timeout or error, we must still initialize to unblocked state
         if (mounted) {
           setAuthState(prev => ({
@@ -278,7 +283,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }));
         }
       } finally {
-        initInProgressRef.current = false;
+        if (mounted) {
+          initInProgressRef.current = false;
+        }
       }
     };
 

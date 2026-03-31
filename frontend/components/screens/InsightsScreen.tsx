@@ -30,6 +30,7 @@ export const InsightsScreen = () => {
   const { 
     bloodSugarReadings, 
     bloodPressureReadings, 
+    medications,
     medicationLogs,
     isLoading: isHealthLoading,
     refetch
@@ -109,11 +110,19 @@ export const InsightsScreen = () => {
           pulse: r.pulse || undefined,
           recorded_at: r.recorded_at
         })),
-        medications: filteredReadings.medLogs.slice(0, 20).map(l => ({
-          name: 'Medication',
-          dosage: 'N/A',
-          status: l.status,
-          date: l.date
+        medications: filteredReadings.medLogs.slice(0, 20).map(l => {
+          const med = medications.find(m => m.id === l.medication_id);
+          return {
+            name: med?.name || 'Medication',
+            dosage: med?.dosage || 'N/A',
+            status: l.status,
+            date: l.date
+          };
+        }),
+        activeMedications: medications.map(m => ({
+          name: m.name,
+          dosage: m.dosage,
+          purpose: m.notes || 'Routine Clinical Protocol'
         }))
       };
 
@@ -131,6 +140,12 @@ export const InsightsScreen = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleReset = () => {
+    setAiInsight(null);
+    setActionPlan([]);
+    toast.info('Clinical View Reset');
   };
 
   if (isHealthLoading) {
@@ -281,7 +296,16 @@ export const InsightsScreen = () => {
                  <div className="h-6 w-1 bg-[#004c56] rounded-full" />
                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Longitudinal Vitals Intelligence</h3>
               </div>
-              {!aiInsight && (
+              <div className="flex gap-3">
+                {aiInsight && (
+                  <Button 
+                    onClick={handleReset}
+                    variant="outline"
+                    className="rounded-2xl border-slate-200 text-slate-400 font-black text-[10px] uppercase h-10 px-6"
+                  >
+                    Reset Review
+                  </Button>
+                )}
                 <Button 
                   onClick={handleGenerateInsights} 
                   disabled={isAnalyzing}
@@ -289,7 +313,7 @@ export const InsightsScreen = () => {
                 >
                   {isAnalyzing ? 'Synchronizing Markers...' : 'Run New Clinical Audit'}
                 </Button>
-              )}
+              </div>
            </div>
            
            <Card className="border-none bg-white shadow-2xl shadow-slate-200/50 rounded-[48px] p-12 overflow-visible">
