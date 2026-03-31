@@ -38,6 +38,15 @@ export const QuickAddModal = ({
   const [diastolic, setDiastolic] = useState('');
   const [pulse, setPulse] = useState('');
 
+  // Emergency state
+  const [showEmergency, setShowEmergency] = useState(false);
+  const [emergencyReason, setEmergencyReason] = useState('');
+
+  const handleEmergencyCall = () => {
+    window.location.href = 'tel:911';
+    toast.info('Initiating emergency call...');
+  };
+
   const handleSubmit = () => {
     if (type === 'blood_sugar') {
       const value = parseInt(glucoseValue);
@@ -45,6 +54,14 @@ export const QuickAddModal = ({
         toast.error('Please enter a blood sugar value between 20 and 600 mg/dL');
         return;
       }
+      
+      // Critical Check: Sugar > 300
+      if (value > 300) {
+        setEmergencyReason(`Your blood sugar is critically high (${value} mg/dL). This requires immediate attention.`);
+        setShowEmergency(true);
+        return;
+      }
+
       onAddBloodSugar({ value, unit: 'mg/dL', meal_type: mealType });
       toast.success(`Blood sugar ${value} mg/dL recorded.`);
     } else {
@@ -56,11 +73,82 @@ export const QuickAddModal = ({
         toast.error('Please enter valid blood pressure values.');
         return;
       }
+
+      // Critical Check: BP > 180/120
+      if (sys > 180 || dia > 120) {
+        setEmergencyReason(`Critical hypertensive crisis detected (${sys}/${dia}). Immediate medical evaluation recommended.`);
+        setShowEmergency(true);
+        return;
+      }
+
       onAddBloodPressure({ systolic: sys, diastolic: dia, pulse: pul });
       toast.success(`Blood pressure ${sys}/${dia} recorded.`);
     }
     onClose();
   };
+
+  const confirmCriticalSave = () => {
+    if (type === 'blood_sugar') {
+      onAddBloodSugar({ value: parseInt(glucoseValue), unit: 'mg/dL', meal_type: mealType });
+    } else {
+      onAddBloodPressure({ systolic: parseInt(systolic), diastolic: parseInt(diastolic), pulse: pulse ? parseInt(pulse) : undefined });
+    }
+    onClose();
+  };
+
+  if (showEmergency) {
+    return (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 bg-red-950/40 backdrop-blur-md"
+        />
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden relative border-t-8 border-red-500"
+        >
+          <div className="p-8 space-y-6 text-center">
+            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
+              <Heart size={40} fill="currentColor" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">CRITICAL ALERT</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                {emergencyReason}
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <Button 
+                onClick={handleEmergencyCall}
+                className="w-full h-16 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-lg shadow-xl shadow-red-200 gap-3"
+              >
+                <Heart size={24} /> CALL EMERGENCY (911)
+              </Button>
+              <div className="flex gap-3">
+                <Button 
+                   variant="ghost" 
+                   onClick={() => setShowEmergency(false)}
+                   className="flex-1 h-12 rounded-xl text-slate-400 font-bold"
+                >
+                  Edit Values
+                </Button>
+                <Button 
+                   variant="outline" 
+                   onClick={confirmCriticalSave}
+                   className="flex-1 h-12 rounded-xl border-slate-200 text-slate-600 font-bold"
+                >
+                  Just Record
+                </Button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

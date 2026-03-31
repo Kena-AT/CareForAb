@@ -401,10 +401,54 @@ export const useHealthData = () => {
   }, [todaySchedule]);
 
   const calculateAdherenceStreak = useCallback(() => {
-    if (todaySchedule.length === 0) return 0;
-    const taken = todaySchedule.filter(s => s.status === 'taken').length;
-    return taken === todaySchedule.length && taken > 0 ? 1 : 0;
-  }, [todaySchedule]);
+    if (medicationLogs.length === 0) return 0;
+    
+    // Group logs by date and count 'taken' vs total scheduled for that date
+    const logsByDate = medicationLogs.reduce((acc: any, log) => {
+      if (!acc[log.date]) acc[log.date] = { taken: 0, total: 0 };
+      acc[log.date].total += 1;
+      if (log.status === 'taken') acc[log.date].taken += 1;
+      return acc;
+    }, {});
+
+    const dates = Object.keys(logsByDate).sort((a, b) => b.localeCompare(a));
+    let streak = 0;
+    for (const date of dates) {
+      if (logsByDate[date].taken === logsByDate[date].total) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [medicationLogs]);
+
+  const detectTrendDeterioration = useCallback(() => {
+    // Blood Sugar Deterioration (3 consecutive rises)
+    if (bloodSugarReadings.length >= 3) {
+      const last3 = bloodSugarReadings.slice(0, 3).map(r => r.value).reverse();
+      if (last3[2] > last3[1] && last3[1] > last3[0]) return { type: 'blood_sugar', severity: 'medium', message: 'Glucose trend rising over last 3 readings.' };
+    }
+    
+    // Blood Pressure Deterioration
+    if (bloodPressureReadings.length >= 3) {
+      const last3Sys = bloodPressureReadings.slice(0, 3).map(r => r.systolic).reverse();
+      if (last3Sys[2] > last3Sys[1] && last3Sys[1] > last3Sys[0]) return { type: 'blood_pressure', severity: 'medium', message: 'Blood pressure trend rising.' };
+    }
+    
+    return null;
+  }, [bloodSugarReadings, bloodPressureReadings]);
+
+  const detectMissedMedicationRisk = useCallback(() => {
+    const historicalLogs = [...medicationLogs].sort((a, b) => b.date.localeCompare(a.date) || b.scheduled_time.localeCompare(a.scheduled_time));
+    const last3 = historicalLogs.slice(0, 3);
+    const missedCount = last3.filter(l => l.status === 'missed').length;
+    
+    if (missedCount >= 2) {
+      return { severity: 'high', message: `You missed ${missedCount} of your last 3 doses.` };
+    }
+    return null;
+  }, [medicationLogs]);
 
   const getLatestPulse = useCallback((): number | null => {
     const latestBP = bloodPressureReadings[0];
@@ -458,7 +502,7 @@ export const useHealthData = () => {
         // PGRST204 means the column 'meal_type' (or another) doesn't exist in the DB
         if (error.code === 'PGRST204' && payload.meal_type) {
           console.warn('[useHealthData] meal_type column missing, retrying without it...');
-          const { meal_type: _, ...minimalPayload } = payload;
+          const { meal_type: _unused, ...minimalPayload } = payload;
           const { data: retryData, error: retryError } = await supabase
             .from('blood_sugar_readings')
             .insert(minimalPayload)
@@ -483,27 +527,59 @@ export const useHealthData = () => {
   };
 
   const addBloodPressureReading = async (reading: Omit<BloodPressureReading, 'id' | 'recorded_at'>) => {
-    if (!user) return;
+    if (!user) {
+      console.warn('[addBloodPressureReading] No user found in AuthContext');
+      return;
+    }
+
+    const payload: any = {
+      user_id: user.id,
+      systolic: reading.systolic,
+      diastolic: reading.diastolic,
+      pulse: reading.pulse,
+      recorded_at: new Date().toISOString(),
+      notes: reading.notes
+    };
 
     try {
+      console.log('[addBloodPressureReading] Attempting insert:', payload);
       const { data, error } = await supabase
         .from('blood_pressure_readings')
-        .insert({
-          user_id: user.id,
-          systolic: reading.systolic,
-          diastolic: reading.diastolic,
-          pulse: reading.pulse,
-          notes: reading.notes
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle common schema mismatch: missing optional columns pulse or notes
+        if (error.code === 'PGRST204') {
+          console.warn('[addBloodPressureReading] Column mismatch detected, retrying without pulse/notes...');
+          const fallbackPayload = {
+            user_id: user.id,
+            systolic: reading.systolic,
+            diastolic: reading.diastolic,
+            recorded_at: new Date().toISOString()
+          };
+          
+          const { data: retryData, error: retryError } = await supabase
+            .from('blood_pressure_readings')
+            .insert(fallbackPayload)
+            .select()
+            .single();
+            
+          if (retryError) throw retryError;
+          setBloodPressureReadings(prev => [retryData as BloodPressureReading, ...prev]);
+          toast.success('Reading saved!');
+          return;
+        }
+        throw error;
+      }
+      
+      console.log('[addBloodPressureReading] Success:', data);
       setBloodPressureReadings(prev => [data as BloodPressureReading, ...prev]);
       toast.success('Blood pressure reading saved!');
     } catch (error: any) {
-      console.error('Error adding blood pressure reading:', error);
-      toast.error('Failed to save reading');
+      console.error('[addBloodPressureReading] Critical error:', error);
+      toast.error(`Failed to save reading: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -578,6 +654,8 @@ export const useHealthData = () => {
     getTodaySteps,
     calculateHealthScore,
     calculateAdherenceStreak,
+    detectTrendDeterioration,
+    detectMissedMedicationRisk,
     
     // User info
     userName: profile?.full_name,

@@ -32,8 +32,13 @@ export const VitalsScreen = () => {
     bloodPressureReadings, 
     oxygenReadings,
     addBloodSugarReading,
-    addBloodPressureReading
+    addBloodPressureReading,
+    refetch
   } = useHealth();
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'blood_sugar' | 'blood_pressure'>('blood_sugar');

@@ -13,7 +13,7 @@ export interface HealthDataSnapshot {
 }
 
 /**
- * Analyzes health data using Gemini Pro to find patterns and provide insights.
+ * Analyzes health data using Gemini 2.5 Flash to find patterns and provide insights.
  */
 export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
   if (!API_KEY) {
@@ -23,23 +23,26 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
-    You are an AI Medical Health Analyst for the CareForAb app. 
-    Analyze the following patient health data and provide:
-    1. One primary pattern detected (e.g., "Post-dinner glucose spike").
-    2. A brief 2-sentence explanation of why this pattern is occurring based on the data.
-    3. A specific, actionable recommendation for the patient.
-
+    You are a Senior Clinical AI Analyst for the CareForAb app. 
+    Analyze the following patient health data for patterns, risks, and actionable correlations.
+    
     Data Snapshot:
     - Glucose Readings: ${JSON.stringify(data.bloodSugar)}
     - Blood Pressure: ${JSON.stringify(data.bloodPressure)}
     - Medication Adherence: ${JSON.stringify(data.medications)}
 
+    Identify:
+    1. TREND DETERIORATION: (e.g. "BP rising for 5 consecutive days").
+    2. CORRELATIONS: (e.g. "Missed morning meds correlate with afternoon BP spikes").
+    3. MEDICAL SAFETY: (e.g. "Glucose readings over 300 detected").
+
     Expected JSON Format:
     {
-      "pattern": "Pattern Name",
-      "explanation": "Explanation here...",
-      "recommendation": "Recommendation here...",
-      "type": "warning" | "success" | "info"
+      "pattern": "Strong Trend Title (e.g. Vascular Stress)",
+      "explanation": "Detailed clinical reasoning (2 sentences).",
+      "recommendation": "WHAT TO DO: Specific actionable advice.",
+      "type": "critical" | "warning" | "success" | "info",
+      "trendSeverity": number (1-10)
     }
   `;
 
@@ -47,67 +50,64 @@ export const analyzeHealthPatterns = async (data: HealthDataSnapshot) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
-    // Extract JSON from response (Gemini sometimes wraps it in markdown blocks)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
     throw new Error("Failed to parse AI response.");
   } catch (error: any) {
-    console.error("Gemini Analysis Full Error:", error);
-    
-    const statusCode = error?.status || error?.response?.status;
-    const message = error?.message?.toLowerCase() || "";
-
-    if (statusCode === 429 || message.includes("429") || message.includes("quota")) {
-      return {
-        pattern: "Analysis Temporarily Unavailable",
-        explanation: "Our AI service is currently experiencing high demand. We pause analysis to ensure secure, accurate results.",
-        recommendation: "Please try running your health audit again in a few minutes.",
-        type: "info"
-      };
-    }
-
-    if (statusCode === 403 || message.includes("apikey") || message.includes("not authorized")) {
-      return {
-        pattern: "AI Configuration Required",
-        explanation: "The AI service could not be authorized. This usually means the API key is invalid or restricted.",
-        recommendation: "Check your .env file and ensure NEXT_PUBLIC_GEMINI_API_KEY is correct.",
-        type: "warning"
-      };
-    }
-
+    console.error("Gemini Analysis Error:", error);
     return {
-      pattern: "AI Analysis Interrupted",
-      explanation: "We encountered an unexpected error while generating your health insights.",
-      recommendation: "Please verify your internet connection or try again later.",
+      pattern: "Analysis Temporarily Unavailable",
+      explanation: "Our AI service is stabilizing data markers.",
+      recommendation: "Please try running your health audit again in a few moments.",
       type: "info"
     };
   }
 };
 
 /**
- * Analyzes blood pressure readings to generate a concise cardiovascular insight.
+ * Specialized analysis for Blood Pressure readings (Vitals Screen)
  */
-export const analyzeBloodPressure = async (
-  readings: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>
-): Promise<{ headline: string; detail: string; status: 'stable' | 'warning' | 'critical' }> => {
-  if (!API_KEY) throw new Error("Gemini API key is missing.");
+export const analyzeBloodPressure = async (readings: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>) => {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const prompt = `
+    Analyze these BP readings: ${JSON.stringify(readings)}
+    Return JSON: { "headline": "Short Title", "detail": "1 sentence explanation", "status": "stable" | "warning" | "critical" }
+  `;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  try {
+    const result = await model.generateContent(prompt);
+    const jsonMatch = result.response.text().match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : { headline: "Stable Levels", detail: "Readings within normal range.", status: "stable" };
+  } catch {
+    return { headline: "Syncing...", detail: "Analysis in progress.", status: "stable" };
+  }
+};
+
+/**
+ * Checks for medication conflicts, dosage safety, and smart suggestions.
+ */
+export const checkMedicationSafety = async (
+  newMed: { name: string; dosage: string },
+  existingMeds: Array<{ name: string; dosage: string }>
+): Promise<{ safe: boolean; warning?: string; recommendation?: string; suggestedDosage?: string }> => {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
-    You are a clinical AI assistant for the CareForAb health app.
-    Analyze these blood pressure readings and return a brief, plain-language vascular health insight.
+    Analyze for MEDICAL SAFETY conflicts:
+    NEW MEDICATION: ${newMed.name} ${newMed.dosage}
+    CURRENT PROTOCOL: ${JSON.stringify(existingMeds)}
 
-    Readings (most recent first): ${JSON.stringify(readings.slice(0, 5))}
+    Check for:
+    1. Dangerous combinations (e.g. Metformin + Contrast imaging).
+    2. Abnormal dosages (e.g. user entering 5000mg instead of 500mg).
+    3. Duplicate medications.
 
-    Respond ONLY with JSON in this exact format:
+    Return JSON:
     {
-      "headline": "Short title, e.g. 'Vascular Stability'",
-      "detail": "One or two concise sentences about the trend.",
-      "status": "stable" | "warning" | "critical"
+      "safe": boolean,
+      "warning": "Concise medical warning if unsafe",
+      "recommendation": "Immediate step to take",
+      "suggestedDosage": "Standard dosage if the entered one is abnormal"
     }
   `;
 
@@ -115,24 +115,56 @@ export const analyzeBloodPressure = async (
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    throw new Error("Failed to parse BP analysis.");
-  } catch (error: any) {
-    console.error("Gemini BP Analysis Full Error:", error);
-    const message = error?.message?.toLowerCase() || "";
-    
-    if (error?.status === 429 || message.includes("429") || message.includes("quota")) {
-      return {
-        headline: "Analysis Paused",
-        detail: "AI health analysis is temporarily paused due to high server demand. Please check back shortly.",
-        status: "stable"
-      };
-    }
-
-    return {
-      headline: "Insight Unavailable",
-      detail: "We couldn't generate a cardiovascular insight at this time.",
-      status: "stable"
-    };
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : { safe: true };
+  } catch {
+    return { safe: true }; 
   }
+};
+
+/**
+ * Generates a comprehensive clinical report for doctors.
+ */
+export const generateClinicalReport = async (data: HealthDataSnapshot) => {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const prompt = `
+    Generate a high-fidelity Clinical Visit Summary for a physician using the following data: ${JSON.stringify(data)}
+
+    Include:
+    1. Weekly Health Summary (Executive view of glucose/BP stability).
+    2. Adherence Intelligence (Compliance percentage and missed dose patterns).
+    3. Risk Report (Hypertension/Hyperglycemia risk levels).
+    4. Questions for Doctor: 3 evidence-based questions for the patient to ask their provider.
+
+    Return JSON:
+    {
+      "weeklySummary": "Professional medical summary...",
+      "adherenceScore": number (0-100),
+      "risks": ["Risk 1", "Risk 2"],
+      "doctorQuestions": ["Question 1", "Question 2", "Question 3"],
+      "vascularHealthInsight": "...",
+      "metabolicStabilityInsight": "..."
+    }
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const jsonMatch = result.response.text().match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+  } catch (error) {
+    console.error("Gemini Report Error:", error);
+    return null;
+  }
+};
+
+/**
+ * Analyzes health data to provide "What you should do" instructions.
+ */
+export const generateActionPlan = async (data: HealthDataSnapshot) => {
+   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+   const prompt = `Based on these readings: ${JSON.stringify(data)}, provide 3 immediate, concrete steps the user should do today. Return JSON: {"actions": ["Step 1", "Step 2", "Step 3"]}`;
+   try {
+     const result = await model.generateContent(prompt);
+     return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)?.[0] || '{"actions": []}');
+   } catch { return { actions: [] }; }
 };

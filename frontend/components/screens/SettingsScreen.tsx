@@ -79,9 +79,10 @@ export const SettingsScreen = () => {
     
     console.log('[Settings] Starting save...', { userId: user.id });
     setIsSaving(true);
+    const saveStart = Date.now();
     
     try {
-      // Add timeout to prevent infinite hanging
+      // Add timeout to prevent infinite hanging - increased to 10s
       const savePromise = supabase
         .from('profiles')
         .update({
@@ -92,10 +93,14 @@ export const SettingsScreen = () => {
         .eq('id', user.id);
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Save timed out - Supabase not responding')), 5000)
+        setTimeout(() => reject(new Error('Save timed out (10s) - Supabase not responding')), 10000)
       );
       
+      console.log('[Settings] Racing save vs 10s timeout...');
       const { error } = await Promise.race([savePromise, timeoutPromise]) as any;
+
+      const duration = Date.now() - saveStart;
+      console.log(`[Settings] Save operation took ${duration}ms`);
 
       if (error) {
         console.error('[Settings] Supabase error:', error);
