@@ -119,17 +119,25 @@ export class ReminderService {
 
   private async processUserReminders(userId: string, schedules: { medications: { id: string; name: string; dosage: string }; specific_times: string[]; user_id: string }[]) {
     const userLogger = this.serviceLogger.child({ userId });
-    const { data: profile, error: profileError } = await supabase
+    interface Profile {
+  full_name: string;
+  id: string;
+  notification_preferences: { email?: boolean; medication?: boolean };
+  language: string;
+  timezone: string;
+}
+
+const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name,id,notification_preferences,language,timezone,email')
+      .select('full_name,id,notification_preferences,language,timezone')
       .eq('id', userId)
-      .single();
+      .single<Profile>();
 
     if (profileError) { userLogger.error({ error: profileError }, 'Error fetching profile'); return; }
 
     const timezone = profile?.timezone || 'UTC';
     const prefs = profile?.notification_preferences || { email: true, medication: true };
-    const userEmail = profile?.email;
+    const userEmail = await this.getUserEmail(userId);
     if (!prefs.email || !prefs.medication) { userLogger.debug('Notifications disabled'); return; }
 
     const userNow = this.getUserTime(timezone);

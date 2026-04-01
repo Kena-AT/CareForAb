@@ -1,44 +1,50 @@
 "use client";
 
 import { MedicationsScreen } from "@/components/screens/MedicationsScreen";
-import { useHealth } from "@/contexts/HealthContext";
-import { useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useMedications } from "@/hooks/useMedications";
+import { useSchedules } from "@/hooks/useSchedules";
+import { useAdherence } from "@/hooks/useAdherence";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export default function MedicationsPage() {
-  const { user } = useAuth();
   const { 
     medications, 
-    schedules,
+    isLoading: isMedsLoading,
+    addMedication,
+    updateMedication,
+    deleteMedication
+  } = useMedications();
+  
+  const { 
+    schedules, 
+    isLoading: isSchedulesLoading,
+    updateSchedule: updateMedicationSchedule
+  } = useSchedules();
+  
+  const { 
     todaySchedule, 
     markMedicationTaken, 
-    addMedication, 
-    deleteMedication,
-    updateMedication,
-    updateMedicationSchedule,
-    isMedsLoading,
-    refetch 
-  } = useHealth();
+    isLoading: isAdherenceLoading 
+  } = useAdherence();
 
-  useEffect(() => {
-    if (user?.id) {
-      console.log("[MedicationsPage] Triggering data fetch");
-      refetch();
-    }
-  }, [user?.id, refetch]);
+  const isLoading = isMedsLoading || isSchedulesLoading || isAdherenceLoading;
 
   return (
-    <MedicationsScreen
-      medications={medications}
-      schedules={schedules}
-      todaySchedule={todaySchedule}
-      isMedsLoading={isMedsLoading}
-      onMarkMedicationTaken={markMedicationTaken}
-      onAddMedication={addMedication}
-      onUpdateMedication={updateMedication}
-      onUpdateSchedule={updateMedicationSchedule}
-      onDeleteMedication={deleteMedication}
-      onRefresh={refetch}
-    />
+    <ErrorBoundary>
+      <MedicationsScreen
+        medications={medications}
+        schedules={schedules}
+        todaySchedule={todaySchedule}
+        isMedsLoading={isLoading}
+        onMarkMedicationTaken={(logId, medicationId, scheduledTime) => 
+          markMedicationTaken({ logId, medicationId: medicationId!, scheduledTime: scheduledTime! })
+        }
+        onAddMedication={(med, sched) => addMedication({ medication: med, schedule: sched })}
+        onUpdateMedication={(id, updates) => updateMedication({ id, updates })}
+        onUpdateSchedule={(id, updates) => updateMedicationSchedule({ id, updates })}
+        onDeleteMedication={(id) => deleteMedication(id)}
+        onRefresh={() => {}} // React Query handles auto-refresh
+      />
+    </ErrorBoundary>
   );
 }

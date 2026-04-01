@@ -1,9 +1,10 @@
-import { BloodSugarReading, BloodPressureReading, Medication, getGlucoseStatus, getBPStatus } from '@/types/health';
+import { BloodSugarReading, BloodPressureReading, Medication, MedicationSchedule, getGlucoseStatus, getBPStatus } from '@/types/health';
 
 interface ExportData {
   bloodSugarReadings: BloodSugarReading[];
   bloodPressureReadings: BloodPressureReading[];
   medications: Medication[];
+  medicationSchedules?: MedicationSchedule[];
   userName: string;
   dateRange?: { start: Date; end: Date };
 }
@@ -38,9 +39,9 @@ export const exportToCSV = (data: ExportData): void => {
   
   // Medications Section
   lines.push('MEDICATIONS');
-  lines.push('Name,Dosage,Frequency,Times');
+  lines.push('Name,Dosage,Form Type,Notes');
   data.medications.forEach(med => {
-    lines.push(`${med.name},${med.dosage},${med.frequency},"${med.times.join(', ')}"`);
+    lines.push(`${med.name},${med.dosage},${med.form_type || 'N/A'},${med.notes || 'N/A'}`);
   });
   
   const csvContent = lines.join('\n');
@@ -168,12 +169,12 @@ export const exportToPDF = async (data: ExportData): Promise<void> => {
     
     autoTable(doc, {
       startY: yPos,
-      head: [['Medication', 'Dosage', 'Frequency', 'Times']],
+      head: [['Medication', 'Dosage', 'Form Type', 'Notes']],
       body: data.medications.map(med => [
         med.name,
         med.dosage,
-        med.frequency,
-        med.times.join(', ')
+        med.form_type || 'N/A',
+        med.notes || 'N/A'
       ]),
       theme: 'striped',
       headStyles: { fillColor: [34, 197, 94] },

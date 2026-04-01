@@ -55,7 +55,8 @@ export const RegisterRxModal = ({ onClose, onAdd }: RegisterRxModalProps) => {
   };
 
   const handleFrequencyChange = (val: string) => {
-    setFrequency(val);
+    const validFrequency = val as 'daily' | 'twice_daily' | 'weekly' | 'as_needed';
+    setFrequency(validFrequency);
     if (val === 'twice_daily') setTimes(['08:00', '20:00']);
     else if (val === 'daily') setTimes(['08:00']);
     else if (val === 'weekly') setTimes(['08:00']);

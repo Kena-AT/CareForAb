@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Moon, Sun, Monitor, Bell, BellOff, Shield, Mail } from 'lucide-react';
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Moon, Sun, Monitor, Bell, Shield, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -16,8 +18,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cancelAllReminders, scheduleAllMedicationReminders, sendTestNotification } from '@/services/notifications';
-import { useHealth } from '@/contexts/HealthContext';
-import { useEffect } from 'react';
+import { useMedications } from '@/hooks/useMedications';
+import { useSchedules } from '@/hooks/useSchedules';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -35,8 +38,8 @@ interface NotificationSettings {
 export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: SettingsDialogProps) => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
-
-  const { medications, schedules } = useHealth();
+  const { medications } = useMedications();
+  const { schedules } = useSchedules();
 
   const [notifications, setNotifications] = useState<NotificationSettings>(() => {
     if (typeof window === 'undefined') {
@@ -102,7 +105,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
                 if (checked) {
                   // Transform medications + schedules into reminder format
                   const medicationReminders = medications.map(med => {
-                    const medSchedules = schedules.filter(s => s.medication_id === med.id);
+                    const medSchedules = (schedules || []).filter(s => s.medication_id === med.id);
                     const allTimes = medSchedules.flatMap(s => s.times || []);
                     return {
                       id: med.id,
@@ -121,7 +124,6 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
               } catch (error: any) {
                 console.error('Error toggling medication reminders:', error);
                 toast.error(error?.message || 'Failed to update reminders. Please try again.');
-                // Revert the toggle on error
                 setNotifications(prev => ({ ...prev, medicationReminders: !checked }));
               } finally {
                 setIsTogglingReminders(false);
@@ -243,7 +245,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
           </div>
 
           {user?.email_confirmed_at ? (
-            <div className="flex items-center gap-2 text-success">
+            <div className="flex items-center gap-2 text-primary">
               <Shield className="h-4 w-4" />
               <span className="text-sm">Email verified</span>
             </div>
@@ -336,17 +338,19 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{getTitle()}</DialogTitle>
-          <DialogDescription>{getDescription()}</DialogDescription>
-        </DialogHeader>
+    <ErrorBoundary>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{getTitle()}</DialogTitle>
+            <DialogDescription>{getDescription()}</DialogDescription>
+          </DialogHeader>
 
-        {type === 'notifications' && renderNotificationsSettings()}
-        {type === 'privacy' && renderPrivacySettings()}
-        {type === 'help' && renderHelpSettings()}
-      </DialogContent>
-    </Dialog>
+          {type === 'notifications' && renderNotificationsSettings()}
+          {type === 'privacy' && renderPrivacySettings()}
+          {type === 'help' && renderHelpSettings()}
+        </DialogContent>
+      </Dialog>
+    </ErrorBoundary>
   );
 };

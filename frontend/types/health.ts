@@ -108,6 +108,24 @@ export interface ActivityReading {
   recorded_at?: string;
 }
 
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  blood_type: string | null;
+  avatar_url: string | null;
+  language: string | null;
+  timezone?: string | null;
+  notification_preferences: {
+    push: boolean;
+    email: boolean;
+    medication: boolean;
+    clinical_sync: boolean;
+    data_permissions: string;
+    abnormal_readings?: boolean;
+  };
+  updated_at?: string;
+}
+
 export type GlucoseStatus = 'low' | 'normal' | 'high';
 export type BPStatus = 'low' | 'normal' | 'elevated' | 'high';
 

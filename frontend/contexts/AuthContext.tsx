@@ -42,7 +42,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const PUBLIC_ROUTES = ['/', '/auth'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  console.log("[AuthContext] render");
   const [authState, setAuthState] = useState<{
     user: User | null;
     session: Session | null;

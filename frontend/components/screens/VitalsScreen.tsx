@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useHealth } from '@/contexts/HealthContext';
+import { useReadings } from '@/hooks/useReadings';
 import { QuickAddModal } from '@/components/health/QuickAddModal';
 import { analyzeBloodPressure } from '@/services/gemini';
 import {
@@ -36,14 +36,11 @@ export const VitalsScreen = () => {
     activityReadings,
     addBloodSugarReading,
     addBloodPressureReading,
-    refetch 
-  } = useHealth();
+    isLoading
+  } = useReadings();
 
   const [activeVital, setActiveVital] = useState<'blood_sugar' | 'blood_pressure' | 'heart_rate' | 'steps'>('blood_sugar');
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'blood_sugar' | 'blood_pressure'>('blood_sugar');

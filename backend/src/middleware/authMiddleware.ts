@@ -2,18 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../services/reminderService';
 
-// Augment Express Request type to add our custom properties
-declare global {
-  namespace Express {
-    interface Request {
-      user?: { id: string; [key: string]: unknown };
-      requestId?: string;
-    }
-  }
+// Augment Express Request type using interface augmentation
+interface AuthenticatedRequest extends Request {
+  user?: { id: string; [key: string]: unknown };
+  requestId?: string;
 }
 
-// Alias for convenience - using declaration merged Request
-export type AuthRequest = Request;
+export type AuthRequest = AuthenticatedRequest;
 
 // JWT verification is faster than calling Supabase for every request
 const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
@@ -42,7 +37,7 @@ const JWT_VERIFY_OPTIONS: jwt.VerifyOptions = {
  * Falls back to Supabase verification if local verification fails or secret not configured.
  */
 export const requireAuth = async (
-  req: AuthRequest,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {

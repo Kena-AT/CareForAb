@@ -1,0 +1,213 @@
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  BloodSugarReading, 
+  BloodPressureReading, 
+  OxygenReading, 
+  ActivityReading 
+} from "@/types/health";
+import { toast } from "sonner";
+
+export const useReadings = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const sugarQuery = useQuery({
+    queryKey: ["readings", "blood_sugar", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("blood_sugar_readings")
+        .select("id, value, unit, recorded_at, meal_type, notes")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as BloodSugarReading[];
+    },
+    enabled: !!user?.id,
+    staleTime: 300000,
+  });
+
+  const bpQuery = useQuery({
+    queryKey: ["readings", "blood_pressure", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("blood_pressure_readings")
+        .select("id, systolic, diastolic, pulse, recorded_at, notes")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as BloodPressureReading[];
+    },
+    enabled: !!user?.id,
+    staleTime: 300000,
+  });
+
+  const oxygenQuery = useQuery({
+    queryKey: ["readings", "oxygen", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("oxygen_readings")
+        .select("id, value, recorded_at")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as OxygenReading[];
+    },
+    enabled: !!user?.id,
+    staleTime: 300000,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ["readings", "activity", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("activity_readings")
+        .select("id, date, steps")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false })
+        .limit(7);
+      if (error) throw error;
+      return data as ActivityReading[];
+    },
+    enabled: !!user?.id,
+    staleTime: 300000,
+  });
+
+  const addSugarMutation = useMutation({
+    mutationFn: async (reading: Omit<BloodSugarReading, "id" | "recorded_at">) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const payload: any = {
+        user_id: user.id,
+        value: reading.value,
+        unit: reading.unit,
+        recorded_at: new Date().toISOString(),
+        notes: reading.notes,
+        meal_type: reading.meal_type
+      };
+
+      const { data, error } = await supabase
+        .from("blood_sugar_readings")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST204" && payload.meal_type) {
+          const { meal_type: _, ...minimalPayload } = payload;
+          const { data: retryData, error: retryError } = await supabase
+            .from("blood_sugar_readings")
+            .insert(minimalPayload)
+            .select("id")
+            .single();
+          if (retryError) throw retryError;
+          return retryData;
+        }
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["readings", "blood_sugar", user?.id] });
+      toast.success("Blood sugar reading saved");
+    },
+  });
+
+  const addBPMutation = useMutation({
+    mutationFn: async (reading: Omit<BloodPressureReading, "id" | "recorded_at">) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const payload: any = {
+        user_id: user.id,
+        systolic: reading.systolic,
+        diastolic: reading.diastolic,
+        pulse: reading.pulse,
+        recorded_at: new Date().toISOString(),
+        notes: reading.notes
+      };
+
+      const { data, error } = await supabase
+        .from("blood_pressure_readings")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST204") {
+          const fallbackPayload = {
+            user_id: user.id,
+            systolic: reading.systolic,
+            diastolic: reading.diastolic,
+            recorded_at: new Date().toISOString()
+          };
+          const { data: retryData, error: retryError } = await (supabase.from("blood_pressure_readings") as any)
+            .insert(fallbackPayload)
+            .select("id")
+            .single();
+          if (retryError) throw retryError;
+          return retryData;
+        }
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["readings", "blood_pressure", user?.id] });
+      toast.success("Blood pressure reading saved");
+    },
+  });
+
+  const addOxygenMutation = useMutation({
+    mutationFn: async (value: number) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const { data, error } = await supabase
+        .from("oxygen_readings")
+        .insert({ user_id: user.id, value, recorded_at: new Date().toISOString() } as any)
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["readings", "oxygen", user?.id] });
+      toast.success("Oxygen reading saved");
+    },
+  });
+
+  const updateStepsMutation = useMutation({
+    mutationFn: async (steps: number) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await (supabase.from("activity_readings") as any)
+        .upsert({ user_id: user.id, date: today, steps }, { onConflict: "user_id,date" })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["readings", "activity", user?.id] });
+      toast.success("Steps updated");
+    },
+  });
+
+  return {
+    bloodSugarReadings: sugarQuery.data ?? [],
+    bloodPressureReadings: bpQuery.data ?? [],
+    oxygenReadings: oxygenQuery.data ?? [],
+    activityReadings: activityQuery.data ?? [],
+    isLoading: sugarQuery.isLoading || bpQuery.isLoading || oxygenQuery.isLoading || activityQuery.isLoading,
+    addBloodSugarReading: addSugarMutation.mutateAsync,
+    addBloodPressureReading: addBPMutation.mutateAsync,
+    addOxygenReading: addOxygenMutation.mutateAsync,
+    updateTodaySteps: updateStepsMutation.mutateAsync,
+  };
+};
