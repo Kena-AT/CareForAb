@@ -16,7 +16,7 @@ export const useProfile = () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, blood_type, date_of_birth, created_at, updated_at")
+        .select("id, full_name, avatar_url, blood_type, date_of_birth, created_at, updated_at, language, notification_preferences")
         .eq("id", user.id)
         .single();
 

@@ -10,6 +10,7 @@ import {
   ActivityReading 
 } from "@/types/health";
 import { toast } from "sonner";
+import { getGlucoseStatus } from "@/types/health";
 
 export const useReadings = () => {
   const { user } = useAuth();
@@ -116,8 +117,17 @@ export const useReadings = () => {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["readings", "blood_sugar", user?.id] });
+      
+      const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user?.id).single();
+      if (profile?.notification_preferences?.abnormal_readings) {
+        const status = getGlucoseStatus(variables.value, variables.unit);
+        if (status === 'low' || status === 'high') {
+          toast.warning(`Clinic Alert: Abnormal Glucose detected (${variables.value} ${variables.unit} - ${status.toUpperCase()})`);
+        }
+      }
+      
       toast.success("Blood sugar reading saved");
     },
   });
@@ -159,8 +169,16 @@ export const useReadings = () => {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["readings", "blood_pressure", user?.id] });
+      
+      const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user?.id).single();
+      if (profile?.notification_preferences?.abnormal_readings && variables.pulse) {
+        if (variables.pulse > 100 || variables.pulse < 50) {
+          toast.warning(`Clinic Alert: Abnormal Heart Rate detected (${variables.pulse} BPM)`);
+        }
+      }
+
       toast.success("Blood pressure reading saved");
     },
   });

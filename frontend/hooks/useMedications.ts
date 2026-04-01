@@ -6,9 +6,39 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Medication, MedicationSchedule } from "@/types/health";
 import { toast } from "sonner";
 
+import { scheduleAllMedicationReminders, cancelAllReminders } from "@/services/notifications";
+
 export const useMedications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Helper inside hook to get full schedule for notifications
+  const refreshReminders = async () => {
+    if (!user?.id) return;
+    
+    // Check if reminders are enabled in profile
+    const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user.id).single();
+    if (!profile?.notification_preferences?.medication) {
+      await cancelAllReminders();
+      return;
+    }
+
+    const { data: meds } = await supabase
+      .from("medications")
+      .select("id, name, dosage, medication_schedules(times)")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+
+    if (meds) {
+      const scheduleMap = meds.map(m => ({
+        id: m.id,
+        name: m.name,
+        dosage: m.dosage,
+        times: (m.medication_schedules as any).flatMap((s: any) => s.times)
+      }));
+      await scheduleAllMedicationReminders(scheduleMap);
+    }
+  };
 
   const query = useQuery({
     queryKey: ["medications", user?.id],
@@ -68,6 +98,7 @@ export const useMedications = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medications", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["schedules", user?.id] });
+      refreshReminders();
       toast.success("Medication and schedule added");
     },
     onError: (err) => {
@@ -88,6 +119,7 @@ export const useMedications = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medications", user?.id] });
+      refreshReminders();
       toast.success("Medication updated");
     },
     onError: (err) => {
@@ -106,6 +138,7 @@ export const useMedications = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medications", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["schedules", user?.id] });
+      refreshReminders();
       toast.success("Medication removed");
     },
     onError: (err) => {
