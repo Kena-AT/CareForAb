@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from 'react';
 import { Droplets, Heart, TrendingDown, TrendingUp, Minus, Edit, Trash2, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,11 +27,9 @@ interface BaseReadingCardProps<T = BloodSugarReading | BloodPressureReading> {
 
 interface BloodSugarCardProps extends BaseReadingCardProps<BloodSugarReading> {
   reading: BloodSugarReading;
-  onEdit?: (reading: BloodSugarReading) => void;
-  onDelete?: (readingId: string) => void;
 }
 
-export const BloodSugarCard = ({ 
+export const BloodSugarCard = memo(({ 
   reading, 
   onEdit, 
   onDelete, 
@@ -40,20 +39,24 @@ export const BloodSugarCard = ({
   const status = getGlucoseStatus(reading.value, reading.unit);
   
   const statusConfig = {
-    low: { bg: 'bg-warning/10', text: 'text-warning', icon: TrendingDown, label: 'Low' },
-    normal: { bg: 'bg-success/10', text: 'text-success', icon: Minus, label: 'Normal' },
-    high: { bg: 'bg-destructive/10', text: 'text-destructive', icon: TrendingUp, label: 'High' },
+    low: { bg: 'bg-amber-50', text: 'text-amber-600', icon: TrendingDown, label: 'Low' },
+    normal: { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: Minus, label: 'Normal' },
+    high: { bg: 'bg-rose-50', text: 'text-rose-600', icon: TrendingUp, label: 'High' },
   };
 
   const config = statusConfig[status];
   const Icon = config.icon;
 
   return (
-    <Card className={cn("animate-fade-in", config.bg, compact && "!p-0")}>
-      <CardContent className={cn("p-4", compact && "!p-3")}>
+    <Card className={cn(
+      "transition-all duration-300 border-none", 
+      config.bg, 
+      compact ? "p-0" : "shadow-md hover:shadow-lg"
+    )}>
+      <CardContent className={cn("p-4", compact && "p-3")}>
         <div className={cn("flex items-center gap-4", compact && "gap-3")}>
           <div className={cn(
-            "flex items-center justify-center rounded-full bg-card",
+            "flex items-center justify-center rounded-2xl bg-white shadow-sm",
             compact ? "h-10 w-10" : "h-14 w-14"
           )}>
             <Droplets className={cn(
@@ -62,46 +65,33 @@ export const BloodSugarCard = ({
             )} />
           </div>
           
-          <div className={cn("flex-1 min-w-0", compact && "space-y-0.5")}>
-            <p className={cn(
-              "text-muted-foreground",
-              compact ? "text-xs" : "text-label"
-            )}>Glucose Level</p>
-            <div className="flex items-baseline gap-2">
+          <div className={cn("flex-1 min-w-0")}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Glucose</p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
               <span className={cn(
-                "font-semibold",
-                compact ? "text-lg" : "text-headline"
+                "font-black text-slate-900",
+                compact ? "text-lg" : "text-2xl"
               )}>
                 {reading.value}
               </span>
-              <span className={cn(
-                "text-muted-foreground",
-                compact ? "text-xs" : "text-body"
-              )}>
+              <span className="text-[10px] font-bold text-slate-400">
                 {reading.unit}
               </span>
             </div>
             {!compact && (
-              <p className={cn(
-                "text-muted-foreground mt-0.5",
-                compact ? "text-xs" : "text-label"
-              )}>
-                {reading.meal_type.replace('_', ' ')}
+              <p className="text-[10px] font-black uppercase tracking-tighter text-slate-400 mt-1">
+                Measured {reading.meal_type.replace('_', ' ')}
               </p>
             )}
           </div>
 
-          <div className={cn("flex items-center gap-2", compact && "flex-col-reverse items-end")}>
+          <div className="flex items-center gap-3">
             <div className={cn(
-              "flex items-center gap-1 rounded-full",
-              config.bg,
-              compact ? "px-2 py-1 text-xs" : "px-3 py-1.5"
+              "flex items-center gap-1.5 rounded-xl px-3 py-1.5",
+              "bg-white shadow-sm border border-slate-100"
             )}>
-              <Icon className={cn(
-                compact ? "h-3 w-3" : "h-4 w-4", 
-                config.text
-              )} />
-              <span className={cn("font-semibold", config.text)}>
+              <Icon className={cn("h-3 w-3", config.text)} />
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
                 {config.label}
               </span>
             </div>
@@ -111,30 +101,26 @@ export const BloodSugarCard = ({
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost" 
-                    size={compact ? "icon" : "default"} 
-                    className={cn(
-                      compact ? "h-7 w-7" : "h-8 w-8",
-                      "text-muted-foreground"
-                    )}
+                    size="icon" 
+                    className="h-8 w-8 rounded-lg hover:bg-white/50 transition-colors"
                   >
-                    <MoreVertical className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
-                    <span className="sr-only">Actions</span>
+                    <MoreVertical className="h-4 w-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="rounded-xl border-slate-100 italic">
                   {onEdit && (
-                    <DropdownMenuItem onClick={() => onEdit(reading)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      <span>Edit</span>
+                    <DropdownMenuItem onClick={() => onEdit(reading)} className="rounded-lg text-xs font-bold">
+                      <Edit className="h-3.5 w-3.5 mr-2" />
+                      Edit Entry
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
                     <DropdownMenuItem 
                       onClick={() => onDelete(reading.id)}
-                      className="text-destructive"
+                      className="text-destructive rounded-lg text-xs font-bold"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      <span>Delete</span>
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      Remove
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -145,15 +131,15 @@ export const BloodSugarCard = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+BloodSugarCard.displayName = "BloodSugarCard";
 
 interface BloodPressureCardProps extends BaseReadingCardProps<BloodPressureReading> {
   reading: BloodPressureReading;
-  onEdit?: (reading: BloodPressureReading) => void;
-  onDelete?: (readingId: string) => void;
 }
 
-export const BloodPressureCard = ({ 
+export const BloodPressureCard = memo(({ 
   reading, 
   onEdit, 
   onDelete, 
@@ -163,20 +149,24 @@ export const BloodPressureCard = ({
   const status = getBPStatus(reading.systolic, reading.diastolic);
   
   const statusConfig = {
-    low: { bg: 'bg-info/10', text: 'text-info', label: 'Low' },
-    normal: { bg: 'bg-success/10', text: 'text-success', label: 'Normal' },
-    elevated: { bg: 'bg-warning/10', text: 'text-warning', label: 'Elevated' },
-    high: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'High' },
+    low: { bg: 'bg-sky-50', text: 'text-sky-600', label: 'Low' },
+    normal: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'Normal' },
+    elevated: { bg: 'bg-amber-50', text: 'text-amber-600', label: 'Elevated' },
+    high: { bg: 'bg-rose-50', text: 'text-rose-600', label: 'High' },
   };
 
   const config = statusConfig[status];
 
   return (
-    <Card className={cn("animate-fade-in", config.bg, compact && "!p-0")}>
-      <CardContent className={cn("p-4", compact && "!p-3")}>
+    <Card className={cn(
+      "transition-all duration-300 border-none", 
+      config.bg, 
+      compact ? "p-0" : "shadow-md hover:shadow-lg"
+    )}>
+      <CardContent className={cn("p-4", compact && "p-3")}>
         <div className={cn("flex items-center gap-4", compact && "gap-3")}>
           <div className={cn(
-            "flex items-center justify-center rounded-full bg-card",
+            "flex items-center justify-center rounded-2xl bg-white shadow-sm",
             compact ? "h-10 w-10" : "h-14 w-14"
           )}>
             <Heart className={cn(
@@ -185,42 +175,32 @@ export const BloodPressureCard = ({
             )} />
           </div>
           
-          <div className={cn("flex-1 min-w-0", compact && "space-y-0.5")}>
-            <p className={cn(
-              "text-muted-foreground",
-              compact ? "text-xs" : "text-label"
-            )}>Blood Pressure</p>
-            <div className="flex items-baseline gap-2">
+          <div className={cn("flex-1 min-w-0")}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Blood Pressure</p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
               <span className={cn(
-                "font-semibold",
-                compact ? "text-lg" : "text-headline"
+                "font-black text-slate-900",
+                compact ? "text-lg" : "text-2xl"
               )}>
                 {reading.systolic}/{reading.diastolic}
               </span>
-              <span className={cn(
-                "text-muted-foreground",
-                compact ? "text-xs" : "text-body"
-              )}>
+              <span className="text-[10px] font-bold text-slate-400">
                 mmHg
               </span>
             </div>
             {reading.pulse && (
-              <p className={cn(
-                "text-muted-foreground mt-0.5",
-                compact ? "text-xs" : "text-label"
-              )}>
-                Pulse: {reading.pulse} bpm
+              <p className="text-[10px] font-black uppercase tracking-tighter text-slate-400 mt-1">
+                PULSE {reading.pulse} BPM
               </p>
             )}
           </div>
 
-          <div className={cn("flex items-center gap-2", compact && "flex-col-reverse items-end")}>
-            <div className={cn(
-              "flex items-center gap-1 rounded-full",
-              config.bg,
-              compact ? "px-2 py-1 text-xs" : "px-3 py-1.5"
+          <div className="flex items-center gap-3">
+             <div className={cn(
+              "flex items-center gap-1.5 rounded-xl px-3 py-1.5",
+              "bg-white shadow-sm border border-slate-100"
             )}>
-              <span className={cn("font-semibold", config.text)}>
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
                 {config.label}
               </span>
             </div>
@@ -230,30 +210,26 @@ export const BloodPressureCard = ({
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost" 
-                    size={compact ? "icon" : "default"} 
-                    className={cn(
-                      compact ? "h-7 w-7" : "h-8 w-8",
-                      "text-muted-foreground"
-                    )}
+                    size="icon" 
+                    className="h-8 w-8 rounded-lg hover:bg-white/50 transition-colors"
                   >
-                    <MoreVertical className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
-                    <span className="sr-only">Actions</span>
+                    <MoreVertical className="h-4 w-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="rounded-xl border-slate-100 italic">
                   {onEdit && (
-                    <DropdownMenuItem onClick={() => onEdit(reading)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      <span>Edit</span>
+                    <DropdownMenuItem onClick={() => onEdit(reading)} className="rounded-lg text-xs font-bold">
+                      <Edit className="h-3.5 w-3.5 mr-2" />
+                      Edit Entry
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
                     <DropdownMenuItem 
                       onClick={() => onDelete(reading.id)}
-                      className="text-destructive"
+                      className="text-destructive rounded-lg text-xs font-bold"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      <span>Delete</span>
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      Remove
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -264,4 +240,6 @@ export const BloodPressureCard = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+BloodPressureCard.displayName = "BloodPressureCard";

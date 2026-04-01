@@ -21,6 +21,9 @@ export default function DashboardPage() {
     bloodPressureReadings, 
     activityReadings,
     isLoading: isReadingsLoading,
+    isBloodSugarLoading,
+    isBloodPressureLoading,
+    isActivityLoading,
     addBloodSugarReading,
     addBloodPressureReading,
     updateTodaySteps
@@ -63,6 +66,9 @@ export default function DashboardPage() {
         bloodPressureReadings={bloodPressureReadings}
         isMedsLoading={isMedsLoading}
         isReadingsLoading={isReadingsLoading}
+        isBloodSugarLoading={isBloodSugarLoading}
+        isBloodPressureLoading={isBloodPressureLoading}
+        isActivityLoading={isActivityLoading}
         onMarkMedicationTaken={markMedicationTaken}
         onAddBloodSugar={addBloodSugarReading as any}
         onAddBloodPressure={addBloodPressureReading as any}

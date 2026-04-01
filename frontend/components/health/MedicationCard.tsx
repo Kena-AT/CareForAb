@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from 'react';
 import { Check, Clock, Pill, Edit, Trash2, MoreVertical, Syringe, Droplets, Bandage, Wind, Microscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,7 +24,8 @@ interface MedicationCardProps {
   showActions?: boolean;
 }
 
-export const MedicationCard = ({ 
+// Memoize the MedicationCard to prevent unnecessary re-renders in large lists
+export const MedicationCard = memo(({ 
   medication, 
   log, 
   status, 
@@ -42,37 +44,37 @@ export const MedicationCard = ({
 
   return (
     <Card className={cn(
-      "transition-all duration-300 animate-fade-in",
-      isTaken && "bg-success/10 border-success/30",
-      isPending && "bg-card border-primary/20"
+      "transition-all duration-300",
+      isTaken && "bg-success/5 border-success/20 shadow-sm", // Reduced opacity for background and subtle border
+      isPending && "bg-white border-slate-200/50 shadow-md hover:shadow-lg"
     )}>
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           <div className={cn(
-             "flex h-14 w-14 items-center justify-center rounded-full",
-             isTaken ? "bg-success/20" : "bg-primary/10"
+             "flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl transition-transform",
+             isTaken ? "bg-success/10" : "bg-primary/10"
            )}>
              {medication.form_type === 'injection' ? (
-                <Syringe className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Syringe className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               ) : medication.form_type === 'liquid' ? (
-                <Droplets className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Droplets className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               ) : medication.form_type === 'patch' ? (
-                <Bandage className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Bandage className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               ) : medication.form_type === 'inhaler' ? (
-                <Wind className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Wind className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               ) : medication.form_type === 'other' ? (
-                <Microscope className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Microscope className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               ) : (
-                <Pill className={cn("h-7 w-7", isTaken ? "text-success" : "text-primary")} />
+                <Pill className={cn("h-6 w-6 md:h-7 md:w-7", isTaken ? "text-success" : "text-primary")} />
               )}
            </div>
           
           <div className="flex-1 min-w-0">
-            <h3 className="text-title truncate">{medication.name}</h3>
-            <p className="text-body text-muted-foreground">{medication.dosage}</p>
-            <div className="flex items-center gap-1 mt-1 text-label text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>{cardTime}</span>
+            <h3 className="text-sm md:text-base font-black truncate text-slate-900 leading-tight">{medication.name}</h3>
+            <p className="text-xs font-bold text-slate-400 mt-0.5">{medication.dosage}</p>
+            <div className="flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <Clock className="h-3 w-3" />
+              <span>Scheduled {cardTime}</span>
             </div>
           </div>
 
@@ -80,24 +82,24 @@ export const MedicationCard = ({
             {showActions && (onEdit || onDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-50 transition-colors">
+                    <MoreVertical className="h-4 w-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="rounded-xl border-slate-100 italic">
                   {onEdit && (
-                    <DropdownMenuItem onClick={() => onEdit(medication)}>
+                    <DropdownMenuItem onClick={() => onEdit(medication)} className="rounded-lg">
                       <Edit className="h-4 w-4 mr-2" />
-                      Edit
+                      Edit Details
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
                     <DropdownMenuItem 
                       onClick={() => onDelete(medication.id)}
-                      className="text-destructive"
+                      className="text-destructive rounded-lg"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      Remove
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -106,29 +108,31 @@ export const MedicationCard = ({
 
             {isPending ? (
               <Button
-                variant="success"
-                size="lg"
                 onClick={() => onMarkTaken(cardLogId, medication.id, cardTime)}
-                className="shrink-0"
+                className="h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
               >
-                <Check className="h-5 w-5" />
-                <span className="sr-only md:not-sr-only md:ml-2">Take</span>
+                <Check className="h-4 w-4 mr-2" />
+                Take Dose
               </Button>
             ) : (
-              <div className="flex items-center gap-2 text-success font-semibold">
-                <Check className="h-6 w-6" />
-                <span className="text-label">Taken</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl">
+                <Check className="h-4 w-4 text-emerald-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Taken</span>
               </div>
             )}
           </div>
         </div>
         
         {medication.notes && (
-          <p className="mt-3 text-label text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-            {medication.notes}
-          </p>
+          <div className="mt-4 pt-3 border-t border-slate-50">
+            <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+              {medication.notes}
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
   );
-};
+});
+
+MedicationCard.displayName = "MedicationCard";

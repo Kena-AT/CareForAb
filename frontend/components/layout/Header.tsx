@@ -57,7 +57,9 @@ export const Header = ({ title, subtitle, onSettingsClick, rightElement }: Heade
               >
                 <Bell className="h-[18px] w-[18px] text-slate-500 group-hover:text-primary transition-colors" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-white animate-pulse" />
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>

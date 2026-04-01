@@ -15,19 +15,28 @@ CREATE TABLE IF NOT EXISTS public.activity_readings (
 ALTER TABLE public.activity_readings ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can only see their own activity data
-CREATE POLICY "Users can view own activity" 
-ON public.activity_readings FOR SELECT 
-USING (auth.uid() = user_id);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view own activity' AND tablename = 'activity_readings') THEN
+        CREATE POLICY "Users can view own activity" ON public.activity_readings FOR SELECT USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Policy: Users can insert their own activity data
-CREATE POLICY "Users can insert own activity" 
-ON public.activity_readings FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own activity' AND tablename = 'activity_readings') THEN
+        CREATE POLICY "Users can insert own activity" ON public.activity_readings FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Policy: Users can update their own activity data
-CREATE POLICY "Users can update own activity" 
-ON public.activity_readings FOR UPDATE 
-USING (auth.uid() = user_id);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own activity' AND tablename = 'activity_readings') THEN
+        CREATE POLICY "Users can update own activity" ON public.activity_readings FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -38,6 +47,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_activity_readings_updated_at ON public.activity_readings;
 CREATE TRIGGER update_activity_readings_updated_at
     BEFORE UPDATE ON public.activity_readings
     FOR EACH ROW

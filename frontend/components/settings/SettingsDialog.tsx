@@ -116,10 +116,10 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
                   }).filter(m => m.times.length > 0);
                   
                   await scheduleAllMedicationReminders(medicationReminders);
-                  toast.success('Medication reminders enabled');
+                  toast.success('Setting Updated successfully');
                 } else {
                   await cancelAllReminders();
-                  toast.success('Medication reminders disabled');
+                  toast.success('Setting Updated successfully');
                 }
               } catch (error: any) {
                 console.error('Error toggling medication reminders:', error);
@@ -142,7 +142,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
             checked={notifications.abnormalReadings}
             onCheckedChange={(checked) => {
               setNotifications(prev => ({ ...prev, abnormalReadings: checked }));
-              toast.success(checked ? 'Abnormal reading alerts enabled' : 'Abnormal reading alerts disabled');
+              toast.success('Setting Updated successfully');
             }}
           />
         </div>
@@ -157,7 +157,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
             checked={notifications.dailySummary}
             onCheckedChange={(checked) => {
               setNotifications(prev => ({ ...prev, dailySummary: checked }));
-              toast.success(checked ? 'Daily summary enabled' : 'Daily summary disabled');
+              toast.success('Setting Updated successfully');
             }}
           />
         </div>
@@ -192,7 +192,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
             checked={notifications.emailNotifications}
             onCheckedChange={(checked) => {
               setNotifications(prev => ({ ...prev, emailNotifications: checked }));
-              toast.success(checked ? 'Email notifications enabled' : 'Email notifications disabled');
+              toast.success('Setting Updated successfully');
             }}
           />
         </div>
