@@ -99,7 +99,3 @@ Run the entire stack using Docker Compose:
 ```bash
 docker compose up --build
 ```
-
----
-
-*Developed as part of the CareForAb Health Management Initiative.*
