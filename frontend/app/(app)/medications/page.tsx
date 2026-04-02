@@ -43,7 +43,7 @@ export default function MedicationsPage() {
         onUpdateMedication={(id, updates) => updateMedication({ id, updates })}
         onUpdateSchedule={(id, updates) => updateMedicationSchedule({ id, updates })}
         onDeleteMedication={(id) => deleteMedication(id)}
-        onRefresh={() => {}} // React Query handles auto-refresh
+        onRefresh={() => Promise.resolve()} // React Query handles auto-refresh
       />
     </ErrorBoundary>
   );

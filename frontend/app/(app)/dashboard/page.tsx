@@ -13,7 +13,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  useAuth();
   
   const { medications, isLoading: isMedsLoading } = useMedications();
   const { 
@@ -54,22 +54,24 @@ export default function DashboardPage() {
     return todayActivity?.steps ?? 0;
   }, [activityReadings]);
 
-  const isLoading = isMedsLoading || isReadingsLoading || isAdherenceLoading || isProfileLoading;
-
   return (
     <ErrorBoundary>
       <DashboardScreen
         medications={medications}
         medicationLogs={[]} // Deprecated in favor of todaySchedule
         todaySchedule={todaySchedule}
-        bloodSugarReadings={bloodSugarReadings}
         bloodPressureReadings={bloodPressureReadings}
         isMedsLoading={isMedsLoading}
-        isReadingsLoading={isReadingsLoading}
-        isBloodSugarLoading={isBloodSugarLoading}
         isBloodPressureLoading={isBloodPressureLoading}
         isActivityLoading={isActivityLoading}
-        onMarkMedicationTaken={markMedicationTaken}
+        onMarkMedicationTaken={(logId, medicationId, scheduledTime) => {
+          if (!medicationId || !scheduledTime) return;
+          void markMedicationTaken({
+            logId,
+            medicationId,
+            scheduledTime,
+          });
+        }}
         onAddBloodSugar={addBloodSugarReading as any}
         onAddBloodPressure={addBloodPressureReading as any}
         onUpdateSteps={updateTodaySteps}

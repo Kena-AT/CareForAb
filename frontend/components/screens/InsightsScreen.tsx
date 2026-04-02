@@ -20,14 +20,40 @@ import dynamic from 'next/dynamic';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 // Optimization: Dynamically import heavy charts to reduce initial page load time
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false });
-const AreaChart = dynamic(() => import('recharts').then(m => m.AreaChart), { ssr: false });
-const Area = dynamic(() => import('recharts').then(m => m.Area), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import('recharts').then(m => m.CartesianGrid), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false });
-const Line = dynamic(() => import('recharts').then(m => m.Line), { ssr: false });
+// Using unknown typing due to recharts v2.15.1+ and @types/recharts 1.8.29 version mismatch
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer as React.ComponentType<any>),
+  { ssr: false }
+);
+const AreaChart = dynamic(
+  () => import('recharts').then((mod) => mod.AreaChart as React.ComponentType<any>),
+  { ssr: false }
+);
+const Area = dynamic(
+  () => import('recharts').then((mod) => mod.Area as unknown as React.ComponentType<any>),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import('recharts').then((mod) => mod.XAxis as React.ComponentType<any>),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import('recharts').then((mod) => mod.YAxis as React.ComponentType<any>),
+  { ssr: false }
+);
+const CartesianGrid = dynamic(
+  () => import('recharts').then((mod) => mod.CartesianGrid as React.ComponentType<any>),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import('recharts').then((mod) => mod.Tooltip as React.ComponentType<any>),
+  { ssr: false }
+);
+const Line = dynamic(
+  () => import('recharts').then((mod) => mod.Line as React.ComponentType<any>),
+  { ssr: false }
+);
 
 export const InsightsScreen = () => {
   const router = useRouter();
@@ -361,7 +387,7 @@ export const InsightsScreen = () => {
                           />
                           <Tooltip 
                               cursor={{ stroke: '#004c56', strokeWidth: 1, strokeDasharray: '4 4' }}
-                              content={({ active, payload }) => {
+                              content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: { day: string; value: number; isAnomaly?: boolean } }> }) => {
                                 if (active && payload && payload.length) {
                                     const data = payload[0].payload;
                                     return (

@@ -17,7 +17,11 @@ export const useMedications = () => {
     if (!user?.id) return;
     
     // Check if reminders are enabled in profile
-    const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user.id).single();
+    const { data: profile } = (await supabase
+      .from('profiles')
+      .select('notification_preferences')
+      .eq('id', user.id)
+      .single()) as any;
     if (!profile?.notification_preferences?.medication) {
       await cancelAllReminders();
       return;
@@ -67,25 +71,32 @@ export const useMedications = () => {
       if (!user?.id) throw new Error("User not authenticated");
       
       // Step 1: Create medication
+      const medicationInsert: any = {
+        ...(medication as any),
+        // Backward-compatibility: some DBs still require frequency on medications
+        frequency: (schedule as any)?.frequency ?? 'daily',
+        user_id: user.id,
+        is_active: true,
+      };
+
       const { data: medData, error: medError } = await (supabase.from("medications") as any)
-        .insert({
-          ...medication,
-          user_id: user.id,
-          is_active: true,
-        })
+        .insert(medicationInsert)
         .select("id")
         .single();
 
       if (medError) throw medError;
 
       // Step 2: Create schedule
+      const scheduleInsert: any = {
+        ...(schedule as any),
+        frequency: (schedule as any)?.frequency ?? 'daily',
+        medication_id: medData.id,
+        user_id: user.id,
+        is_active: true,
+      };
+
       const { error: schedError } = await (supabase.from("medication_schedules") as any)
-        .insert({
-          ...schedule,
-          medication_id: medData.id,
-          user_id: user.id,
-          is_active: true,
-        });
+        .insert(scheduleInsert);
 
       if (schedError) {
         // Cleanup medication if schedule fails
