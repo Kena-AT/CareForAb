@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export interface HealthDataSnapshot {
   bloodSugar: Array<{ value: number; unit: string; meal_type: string; recorded_at: string }>;
   bloodPressure: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>;
@@ -13,16 +11,26 @@ export interface MedicationInput {
 }
 
 export class GeminiService {
-  private getClient() {
+  // Dynamically import the Gemini SDK to avoid module load failure at startup
+  private async getClient() {
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('Gemini API key is missing. Set GOOGLE_GEMINI_API_KEY in backend environment.');
     }
-    return new GoogleGenerativeAI(apiKey);
+
+    try {
+      const mod = await import('@google/generative-ai');
+      const GoogleGenerativeAI = (mod as any).GoogleGenerativeAI;
+      return new GoogleGenerativeAI(apiKey);
+    } catch (err) {
+      // Provide a helpful error without crashing on import time
+      throw new Error('Gemini SDK is not installed. Run `npm --prefix backend install @google/generative-ai` and restart the server.');
+    }
   }
 
-  private getModel() {
-    return this.getClient().getGenerativeModel({ model: 'gemini-2.5-flash' });
+  private async getModel() {
+    const client = await this.getClient();
+    return client.getGenerativeModel({ model: 'gemini-2.5-flash' });
   }
 
   async analyzeBloodPressure(readings: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>) {

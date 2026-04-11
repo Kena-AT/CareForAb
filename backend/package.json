@@ -4,7 +4,7 @@
   "description": "Standalone backend for CareForAb",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "cross-env PORT=3001 nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint . --ext .ts"
@@ -36,6 +36,7 @@
     "@types/supertest": "^7.2.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.56.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.9",
