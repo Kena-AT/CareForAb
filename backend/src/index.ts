@@ -7,6 +7,7 @@ import pinoHttp from 'pino-http';
 import { logger } from './utils/logger';
 import { reminderService } from './services/reminderService';
 import authRoutes from './routes/authRoutes';
+import aiRoutes from './routes/aiRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { standardLimiter, authLimiter } from './middleware/rateLimiter';
 import { monitorSuspiciousActivity } from './middleware/securityLogger';
@@ -15,7 +16,19 @@ import { requireAuth } from './middleware/authMiddleware';
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+const corsOrigins = (process.env.CORS_ORIGINS || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000,http://127.0.0.1:3000'))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Structured logging with Pino
@@ -45,6 +58,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/ai', requireAuth, aiRoutes);
 
 app.post('/api/reminders/test', requireAuth, async (req, res) => {
   await reminderService.checkAndSendReminders();

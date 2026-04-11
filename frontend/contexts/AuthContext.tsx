@@ -13,6 +13,7 @@ import {
 } from '@/lib/session';
 import { useQueryClient } from '@tanstack/react-query';
 import { isNetworkError } from '@/lib/utils';
+import { apiUrl } from '@/lib/api';
 
 interface Profile {
   id: string;
@@ -381,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authError) throw authError;
 
       // Call backend to send verification code via Brevo
-      const response = await fetch('http://localhost:30001/api/auth/send-code', {
+      const response = await fetch(apiUrl('/api/auth/send-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, fullName, dateOfBirth }),
@@ -400,7 +401,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyOtp = async (email: string, code: string) => {
     try {
-      const response = await fetch('http://localhost:30001/api/auth/verify-code', {
+      const response = await fetch(apiUrl('/api/auth/verify-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -426,7 +427,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendOtp = async (email: string, fullName: string) => {
     try {
-      const response = await fetch('http://localhost:30001/api/auth/send-code', {
+      const response = await fetch(apiUrl('/api/auth/send-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, fullName }),

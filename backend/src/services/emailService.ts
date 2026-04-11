@@ -9,9 +9,9 @@ export class EmailService {
   private senderEmail: string;
 
   constructor() {
-    apiKey.apiKey = process.env.BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
+    apiKey.apiKey = process.env.BREVO_API_KEY;
     this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    this.senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.VITE_BREVO_SENDER_EMAIL || 'kenakaye11@gmail.com';
+    this.senderEmail = process.env.BREVO_SENDER_EMAIL || 'kenakaye11@gmail.com';
   }
 
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {

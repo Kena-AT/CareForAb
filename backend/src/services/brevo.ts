@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const BREVO_API_KEY = process.env.BREVO_API_KEY || process.env.NEXT_PUBLIC_BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
-const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.NEXT_PUBLIC_BREVO_SENDER_EMAIL || process.env.VITE_BREVO_SENDER_EMAIL;
-const BREVO_SENDER_NAME = process.env.APP_NAME || process.env.NEXT_PUBLIC_APP_NAME || process.env.VITE_APP_NAME || 'CareforAb';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL;
+const BREVO_SENDER_NAME = process.env.APP_NAME || 'CareforAb';
 
 export interface EmailRecipient {
   email: string;

@@ -64,6 +64,7 @@ The project is built as a modern monorepo featuring a high-performance Next.js f
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
    ```
 
    **Backend (`backend/.env`):**
@@ -72,6 +73,8 @@ The project is built as a modern monorepo featuring a high-performance Next.js f
    SUPABASE_URL=your_supabase_url
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    BREVO_API_KEY=your_brevo_key
+   GOOGLE_GEMINI_API_KEY=your_gemini_key
+   CORS_ORIGINS=http://localhost:3000
    ```
 
 ## 🚀 Running Locally

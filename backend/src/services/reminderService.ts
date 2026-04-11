@@ -3,7 +3,7 @@ import cron from 'node-cron';
 import { emailService } from './emailService';
 import { logger } from '../utils/logger';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const supabase = createClient(supabaseUrl!, supabaseKey!);
