@@ -50,13 +50,15 @@ export default function MedicationsPage() {
         onRefresh={async () => {
           const loadingToast = toast.loading("Syncing medications data...");
           try {
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: ["medications"] }),
-              queryClient.invalidateQueries({ queryKey: ["schedules"] }),
-              queryClient.invalidateQueries({ queryKey: ["medications-with-schedules"] }),
-              queryClient.invalidateQueries({ queryKey: ["logs"] }),
-            ]);
-            toast.success("Medications up to date", { id: loadingToast });
+            // Fire invalidations without strictly awaiting to prevent hanging if network is slow/retrying
+            queryClient.invalidateQueries({ queryKey: ["medications"] });
+            queryClient.invalidateQueries({ queryKey: ["schedules"] });
+            queryClient.invalidateQueries({ queryKey: ["medications-with-schedules"] });
+            queryClient.invalidateQueries({ queryKey: ["logs"] });
+            
+            // Brief delay for UX feedback
+            await new Promise(resolve => setTimeout(resolve, 600));
+            toast.success("Medications synced", { id: loadingToast });
           } catch (error) {
             toast.error("Failed to sync data", { id: loadingToast });
           }
