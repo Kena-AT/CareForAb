@@ -133,15 +133,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (!data) {
-        // Profile doesn't exist - create it on-demand
-        console.log('[AuthContext] Profile not found, creating for user:', userId);
+        // Profile doesn't exist or isn't accessible - try upserting
+        console.log('[AuthContext] Profile not found, creating/upserting for user:', userId);
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: userId,
             full_name: userMetadata?.full_name || null,
             date_of_birth: userMetadata?.date_of_birth || null,
-          })
+          }, { onConflict: 'id' })
           .select('id, full_name, date_of_birth, created_at')
           .single();
         
