@@ -1,5 +1,7 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { MedicationsScreen } from "@/components/screens/MedicationsScreen";
 import { useMedications } from "@/hooks/useMedications";
 import { useSchedules } from "@/hooks/useSchedules";
@@ -7,6 +9,8 @@ import { useAdherence } from "@/hooks/useAdherence";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export default function MedicationsPage() {
+  const queryClient = useQueryClient();
+  
   const { 
     medications, 
     isLoading: isMedsLoading,
@@ -43,7 +47,20 @@ export default function MedicationsPage() {
         onUpdateMedication={(id, updates) => updateMedication({ id, updates })}
         onUpdateSchedule={(id, updates) => updateMedicationSchedule({ id, updates })}
         onDeleteMedication={(id) => deleteMedication(id)}
-        onRefresh={() => Promise.resolve()} // React Query handles auto-refresh
+        onRefresh={async () => {
+          const loadingToast = toast.loading("Syncing medications data...");
+          try {
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["medications"] }),
+              queryClient.invalidateQueries({ queryKey: ["schedules"] }),
+              queryClient.invalidateQueries({ queryKey: ["medications-with-schedules"] }),
+              queryClient.invalidateQueries({ queryKey: ["logs"] }),
+            ]);
+            toast.success("Medications up to date", { id: loadingToast });
+          } catch (error) {
+            toast.error("Failed to sync data", { id: loadingToast });
+          }
+        }}
       />
     </ErrorBoundary>
   );

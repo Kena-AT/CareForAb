@@ -58,7 +58,7 @@ export const VitalsScreen = () => {
       diastolic: r.diastolic,
       pulse: r.pulse ?? undefined,
       recorded_at: r.recorded_at
-    }))).then(res => {
+    }))).then((res: any) => {
       setBpAnalysis(res);
     }).catch(() => {
       // Fail silently - don't disrupt UI if AI is unavailable
