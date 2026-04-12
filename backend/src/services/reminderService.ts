@@ -68,9 +68,9 @@ export class ReminderService {
   }
 
   private isWithinReminderWindow(scheduledMinutes: number, currentMinutes: number): boolean {
-    const windowEnd = currentMinutes + this.REMINDER_WINDOW_MINUTES;
-    if (windowEnd < 1440) return scheduledMinutes >= currentMinutes && scheduledMinutes <= windowEnd;
-    return scheduledMinutes >= currentMinutes || scheduledMinutes <= (windowEnd - 1440);
+    const windowEnd = scheduledMinutes + this.REMINDER_WINDOW_MINUTES;
+    if (windowEnd < 1440) return currentMinutes >= scheduledMinutes && currentMinutes <= windowEnd;
+    return currentMinutes >= scheduledMinutes || currentMinutes <= (windowEnd - 1440);
   }
 
   async checkAndSendReminders() {
@@ -117,7 +117,7 @@ export class ReminderService {
     }
   }
 
-  private async processUserReminders(userId: string, schedules: { medications: { id: string; name: string; dosage: string }; specific_times: string[]; user_id: string }[]) {
+  private async processUserReminders(userId: string, schedules: { medications: { id: string; name: string; dosage: string }; times: string[]; user_id: string }[]) {
     const userLogger = this.serviceLogger.child({ userId });
     interface Profile {
   full_name: string;
@@ -145,9 +145,9 @@ const { data: profile, error: profileError } = await supabase
 
     for (const schedule of schedules) {
       const medication = schedule.medications;
-      if (!medication || !schedule.specific_times || !Array.isArray(schedule.specific_times)) continue;
+      if (!medication || !schedule.times || !Array.isArray(schedule.times)) continue;
 
-      for (const scheduledTime of schedule.specific_times) {
+      for (const scheduledTime of schedule.times) {
         const scheduledMinutes = this.timeToMinutes(scheduledTime);
         if (!this.isWithinReminderWindow(scheduledMinutes, userNow.minutes)) continue;
 

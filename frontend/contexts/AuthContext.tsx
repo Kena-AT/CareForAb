@@ -141,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             full_name: userMetadata?.full_name || null,
             date_of_birth: userMetadata?.date_of_birth || null,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
           }, { onConflict: 'id' })
           .select('id, full_name, date_of_birth, created_at')
           .single();

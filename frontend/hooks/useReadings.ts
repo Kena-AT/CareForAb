@@ -55,13 +55,13 @@ export const useReadings = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
-        .from("oxygen_readings")
+        .from("oxygen_readings" as any)
         .select("id, value, recorded_at")
         .eq("user_id", user.id)
         .order("recorded_at", { ascending: false })
         .limit(20);
       if (error) throw error;
-      return data as OxygenReading[];
+      return data as unknown as OxygenReading[];
     },
     enabled: !!user?.id,
     staleTime: 300000,
@@ -187,7 +187,7 @@ export const useReadings = () => {
     mutationFn: async (value: number) => {
       if (!user?.id) throw new Error("User not authenticated");
       const { data, error } = await supabase
-        .from("oxygen_readings")
+        .from("oxygen_readings" as any)
         .insert({ user_id: user.id, value, recorded_at: new Date().toISOString() } as any)
         .select("id")
         .single();
