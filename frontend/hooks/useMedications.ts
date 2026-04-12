@@ -38,7 +38,7 @@ export const useMedications = () => {
         id: m.id,
         name: m.name,
         dosage: m.dosage,
-        times: (m.medication_schedules as any).flatMap((s: any) => s.times)
+        times: Array.isArray(m.medication_schedules) ? m.medication_schedules.flatMap((s: any) => s.times) : (m.medication_schedules as any)?.times || []
       }));
       await scheduleAllMedicationReminders(scheduleMap);
     }

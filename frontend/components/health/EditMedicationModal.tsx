@@ -81,7 +81,7 @@ export const EditMedicationModal = ({ medication, initialSchedule, onClose, onUp
           treatment_type: treatmentType,
           times,
           start_date: startDate,
-          end_date: isIndefinite ? null : endDate,
+          end_date: isIndefinite ? null : (endDate || null),
           is_indefinite: isIndefinite,
         });
       }
