@@ -31,7 +31,7 @@ interface AuthContextType {
   /* eslint-disable */
   signUp: (email: string, password: string, fullName: string, dateOfBirth: string) => Promise<{ error: Error | null }>;
   verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error: string | null }>;
-  resendOtp: (email: string, fullName: string) => Promise<{ success: boolean; error: string | null }>;
+  resendOtp: (email: string, fullName: string, password?: string, dateOfBirth?: string) => Promise<{ success: boolean; error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   /* eslint-enable */
   signOut: () => Promise<void>;
@@ -369,24 +369,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
     try {
-      const { error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            date_of_birth: dateOfBirth
-          }
-        }
-      });
-
-      if (authError) throw authError;
-
-      // Call backend to send verification code via Brevo
+      // Brevo-only verification flow (no Supabase verification email).
       const response = await fetch(apiUrl('/api/auth/send-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, fullName, dateOfBirth }),
+        body: JSON.stringify({
+          email,
+          fullName,
+          dateOfBirth,
+          password,
+          purpose: 'signup',
+        }),
       });
 
       if (!response.ok) {
@@ -414,11 +407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: result.error || 'Verification failed' };
       }
 
-      if (result.confirmed) {
-        toast.success("Account verified! You can now sign in.");
-      } else {
-        toast.info("Code verified! Manual confirmation might be pending by system administrator.");
-      }
+      toast.success(result.message || "Account verified! You can now sign in.");
 
       return { success: true, error: null };
     } catch (error: any) {
@@ -426,12 +415,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const resendOtp = async (email: string, fullName: string) => {
+  const resendOtp = async (email: string, fullName: string, password?: string, dateOfBirth?: string) => {
     try {
       const response = await fetch(apiUrl('/api/auth/send-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, fullName }),
+        body: JSON.stringify({
+          email,
+          fullName,
+          password,
+          dateOfBirth,
+          purpose: password ? 'signup' : 'generic',
+        }),
       });
 
       if (!response.ok) {

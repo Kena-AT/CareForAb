@@ -12,9 +12,31 @@ import {
 import { toast } from "sonner";
 import { getGlucoseStatus } from "@/types/health";
 
-export const useReadings = () => {
+type ReadingType = 'blood_sugar' | 'blood_pressure' | 'oxygen' | 'activity';
+
+export const useReadings = (options?: { types?: ReadingType[] }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const types = options?.types ?? ['blood_sugar', 'blood_pressure', 'oxygen', 'activity'];
+  const includeSugar = types.includes('blood_sugar');
+  const includePressure = types.includes('blood_pressure');
+  const includeOxygen = types.includes('oxygen');
+  const includeActivity = types.includes('activity');
+
+  const getNotificationPreferences = async () => {
+    const cachedProfile = queryClient.getQueryData<any>(["profile", user?.id]);
+    if (cachedProfile?.notification_preferences) {
+      return cachedProfile.notification_preferences;
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('notification_preferences')
+      .eq('id', user?.id)
+      .single();
+
+    return profile?.notification_preferences;
+  };
 
   const sugarQuery = useQuery({
     queryKey: ["readings", "blood_sugar", user?.id],
@@ -29,7 +51,7 @@ export const useReadings = () => {
       if (error) throw error;
       return data as BloodSugarReading[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeSugar,
     staleTime: 300000,
   });
 
@@ -46,7 +68,7 @@ export const useReadings = () => {
       if (error) throw error;
       return data as BloodPressureReading[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includePressure,
     staleTime: 300000,
   });
 
@@ -63,7 +85,7 @@ export const useReadings = () => {
       if (error) throw error;
       return data as unknown as OxygenReading[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeOxygen,
     staleTime: 300000,
   });
 
@@ -80,7 +102,7 @@ export const useReadings = () => {
       if (error) throw error;
       return data as ActivityReading[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeActivity,
     staleTime: 300000,
   });
 
@@ -120,8 +142,8 @@ export const useReadings = () => {
     onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["readings", "blood_sugar", user?.id] });
       
-      const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user?.id).single();
-      if (profile?.notification_preferences?.abnormal_readings) {
+      const prefs = await getNotificationPreferences();
+      if (prefs?.abnormal_readings) {
         const status = getGlucoseStatus(variables.value, variables.unit);
         if (status === 'low' || status === 'high') {
           toast.warning(`Clinic Alert: Abnormal Glucose detected (${variables.value} ${variables.unit} - ${status.toUpperCase()})`);
@@ -172,8 +194,8 @@ export const useReadings = () => {
     onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["readings", "blood_pressure", user?.id] });
       
-      const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', user?.id).single();
-      if (profile?.notification_preferences?.abnormal_readings && variables.pulse) {
+      const prefs = await getNotificationPreferences();
+      if (prefs?.abnormal_readings && variables.pulse) {
         if (variables.pulse > 100 || variables.pulse < 50) {
           toast.warning(`Clinic Alert: Abnormal Heart Rate detected (${variables.pulse} BPM)`);
         }

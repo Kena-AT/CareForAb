@@ -10,9 +10,12 @@ import {
 import { toast } from "sonner";
 import { useMemo } from "react";
 
-export const useAdherence = () => {
+export const useAdherence = (options?: { summaryOnly?: boolean; includeSchedule?: boolean; includeHistory?: boolean }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const summaryOnly = options?.summaryOnly ?? false;
+  const includeSchedule = options?.includeSchedule ?? true;
+  const includeHistory = options?.includeHistory ?? !summaryOnly;
 
   const today = useMemo(() => {
     const now = new Date();
@@ -36,7 +39,7 @@ export const useAdherence = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeSchedule,
   });
 
   // Fetch logs for today (Targeted columns)
@@ -52,7 +55,7 @@ export const useAdherence = () => {
       if (error) throw error;
       return data as MedicationLog[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeSchedule,
     staleTime: 60000, 
   });
 
@@ -70,7 +73,7 @@ export const useAdherence = () => {
       if (error) throw error;
       return data as MedicationLog[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && includeHistory,
     staleTime: 300000,
   });
 
@@ -159,6 +162,7 @@ export const useAdherence = () => {
   }, [todaySchedule]);
 
   const adherenceStreak = useMemo(() => {
+    if (!includeHistory) return 0;
     const logs = allLogsQuery.data ?? [];
     if (logs.length === 0) return 0;
     
@@ -180,9 +184,10 @@ export const useAdherence = () => {
       }
     }
     return streak;
-  }, [allLogsQuery.data]);
+  }, [allLogsQuery.data, includeHistory]);
 
   const missedMedicationRisk = useMemo(() => {
+    if (!includeHistory) return null;
     const logs = allLogsQuery.data ?? [];
     const historicalLogs = [...logs].sort((a, b) => b.date.localeCompare(a.date));
     const last3 = historicalLogs.slice(0, 3);
@@ -192,15 +197,15 @@ export const useAdherence = () => {
       return { severity: 'high', message: `You missed ${missedCount} of your last 3 doses.` };
     }
     return null;
-  }, [allLogsQuery.data]);
+  }, [allLogsQuery.data, includeHistory]);
 
   return {
     todaySchedule,
     adherenceRate,
     adherenceStreak,
     missedMedicationRisk,
-    medicationLogs: allLogsQuery.data ?? [],
-    isLoading: combinedMedsQuery.isLoading || logsQuery.isLoading || allLogsQuery.isLoading,
+    medicationLogs: summaryOnly ? (logsQuery.data ?? []) : (allLogsQuery.data ?? []),
+    isLoading: (includeSchedule && (combinedMedsQuery.isLoading || logsQuery.isLoading)) || (includeHistory && allLogsQuery.isLoading),
     markMedicationTaken: markMedicationTakenMutation.mutateAsync,
   };
 };

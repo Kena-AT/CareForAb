@@ -27,9 +27,12 @@ export function ClinicalReportDetails() {
     bloodSugarReadings, 
     bloodPressureReadings, 
     isLoading: isReadingsLoading 
-  } = useReadings();
+  } = useReadings({ types: ['bloodSugar', 'bloodPressure'] });
   const { medications, isLoading: isMedsLoading } = useMedications();
-  const { medicationLogs, adherenceRate: calculatedAdherenceRate, isLoading: isAdherenceLoading } = useAdherence();
+  const { medicationLogs, adherenceRate: calculatedAdherenceRate, isLoading: isAdherenceLoading } = useAdherence({
+    includeSchedule: false,
+    includeHistory: true,
+  });
 
   const userName = profile?.full_name || 'Patient';
 

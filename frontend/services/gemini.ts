@@ -9,6 +9,17 @@ export interface HealthDataSnapshot {
   bloodPressure: Array<{ systolic: number; diastolic: number; pulse?: number; recorded_at: string }>;
   medications: Array<{ name: string; dosage: string; status: string; date: string }>;
   activeMedications?: Array<{ name: string; dosage: string; frequency?: string; purpose?: string }>;
+  oxygen?: Array<{ value: number; recorded_at: string }>;
+  activity?: Array<{ steps: number; date: string; recorded_at?: string }>;
+  adherence?: { todayRate?: number; streak?: number; recentMissed?: number };
+  profile?: { bloodType?: string | null; age?: number | null; timezone?: string | null };
+}
+
+export interface MedicalQAResponse {
+  answer: string;
+  confidence: 'high' | 'medium' | 'low';
+  caution: 'low' | 'moderate' | 'high';
+  followUp?: string;
 }
 
 const getAuthHeaders = async () => {
@@ -60,7 +71,7 @@ export const analyzeBloodPressure = async (readings: Array<{ systolic: number; d
     if (error.message?.includes('429') || error.message?.includes('quota')) {
       return { headline: "Clinical Syncing Pause", detail: "CareForAb AI at capacity. Real-time safety monitoring still active.", status: "stable" };
     }
-    return { headline: "Syncing...", detail: "Analysis in progress.", status: "stable" };
+    return { headline: "AI Update Paused", detail: "Local monitoring remains active.", status: "stable" };
   }
 };
 
@@ -94,9 +105,9 @@ export const generateClinicalReport = async (data: HealthDataSnapshot) => {
     console.error("CareForAb AI Report Error:", error);
     if (error.message?.includes('429') || error.message?.includes('quota')) {
        return { 
-          weeklySummary: "CareForAb AI Clinical Report at Capacity. Please print your trend data below for physician review.",
-          risks: ["Safety Monitoring Active"],
-          doctorQuestions: ["Verify latest vitals with provider"],
+         weeklySummary: "AI report is temporarily unavailable. Use the trend data below for review.",
+         risks: ["AI insights unavailable"],
+         doctorQuestions: ["Can we review my latest vitals manually?"],
           adherenceScore: 100
        };
     }
@@ -114,6 +125,25 @@ export const generateActionPlan = async (data: HealthDataSnapshot) => {
      if (error.message?.includes('429') || error.message?.includes('quota')) {
         return { actions: ["Maintain consistent medication schedule", "Log new vitals regularly", "Check your trends below"] };
      }
-     return { actions: [] }; 
+     return { actions: ["Keep following your current care plan", "Log a fresh reading today", "Review trends below"] }; 
    }
+};
+
+/**
+ * Answers free-form medical questions using available user health context.
+ */
+export const askMedicalQuestion = async (
+  question: string,
+  data: HealthDataSnapshot
+): Promise<MedicalQAResponse> => {
+  try {
+    return await postJson<MedicalQAResponse>('/api/ai/medical-qa', { question, data });
+  } catch {
+    return {
+      answer: 'I could not complete the AI response right now. Please retry or ask your clinician for urgent concerns.',
+      confidence: 'low',
+      caution: 'moderate',
+      followUp: 'For urgent symptoms, seek immediate medical care.',
+    };
+  }
 };

@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -20,6 +19,7 @@ import {
 import { cancelAllReminders, scheduleAllMedicationReminders, sendTestNotification } from '@/services/notifications';
 import { useMedications } from '@/hooks/useMedications';
 import { useSchedules } from '@/hooks/useSchedules';
+import { useProfile } from '@/hooks/useProfile';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 interface SettingsDialogProps {
@@ -38,49 +38,53 @@ interface NotificationSettings {
 export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: SettingsDialogProps) => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
-  const { medications } = useMedications();
-  const { schedules } = useSchedules();
+  const shouldLoadReminderData = open && type === 'notifications';
+  const { medications } = useMedications({ enabled: shouldLoadReminderData });
+  const { schedules } = useSchedules({ enabled: shouldLoadReminderData });
+  const { profile, updateProfileAsync } = useProfile();
 
-  const [notifications, setNotifications] = useState<NotificationSettings>(() => {
-    if (typeof window === 'undefined') {
-      return { medicationReminders: true, dailySummary: false, abnormalReadings: true, emailNotifications: false };
-    }
-    const saved = localStorage.getItem('notification-settings');
-    return saved ? JSON.parse(saved) : {
-      medicationReminders: true,
-      dailySummary: false,
-      abnormalReadings: true,
-      emailNotifications: false,
-    };
+  const [notifications, setNotifications] = useState<NotificationSettings>({
+    medicationReminders: true,
+    dailySummary: false,
+    abnormalReadings: true,
+    emailNotifications: false,
   });
   
   const [isTogglingReminders, setIsTogglingReminders] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('notification-settings', JSON.stringify(notifications));
-  }, [notifications]);
+    const prefs = profile?.notification_preferences;
+    if (!prefs) return;
 
-  const [resendingVerification, setResendingVerification] = useState(false);
+    setNotifications({
+      medicationReminders: prefs.medication ?? true,
+      dailySummary: prefs.clinical_sync ?? false,
+      abnormalReadings: prefs.abnormal_readings ?? true,
+      emailNotifications: prefs.email ?? false,
+    });
+  }, [profile]);
 
-  const handleResendVerification = async () => {
-    if (!user?.email) return;
+  const persistNotifications = async (next: NotificationSettings) => {
+    const previous = notifications;
+    setNotifications(next);
 
-    setResendingVerification(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: user.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
+      await updateProfileAsync({
+        notification_preferences: {
+          ...(profile?.notification_preferences || {}),
+          medication: next.medicationReminders,
+          clinical_sync: next.dailySummary,
+          abnormal_readings: next.abnormalReadings,
+          email: next.emailNotifications,
+        } as any,
+        updated_at: new Date().toISOString(),
       });
-
-      if (error) throw error;
-      toast.success('Verification email sent! Check your inbox.');
+      return true;
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send verification email');
-    } finally {
-      setResendingVerification(false);
+      console.error('Error persisting notification preferences:', error);
+      setNotifications(previous);
+      toast.error(error?.message || 'Failed to update setting. Please try again.');
+      return false;
     }
   };
 
@@ -101,7 +105,10 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
             onCheckedChange={async (checked) => {
               setIsTogglingReminders(true);
               try {
-                setNotifications(prev => ({ ...prev, medicationReminders: checked }));
+                const next = { ...notifications, medicationReminders: checked };
+                const saved = await persistNotifications(next);
+                if (!saved) return;
+
                 if (checked) {
                   // Transform medications + schedules into reminder format
                   const medicationReminders = medications.map(med => {
@@ -124,7 +131,7 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
               } catch (error: any) {
                 console.error('Error toggling medication reminders:', error);
                 toast.error(error?.message || 'Failed to update reminders. Please try again.');
-                setNotifications(prev => ({ ...prev, medicationReminders: !checked }));
+                await persistNotifications({ ...notifications, medicationReminders: !checked });
               } finally {
                 setIsTogglingReminders(false);
               }
@@ -140,9 +147,11 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
           <Switch
             id="abnormal-readings"
             checked={notifications.abnormalReadings}
-            onCheckedChange={(checked) => {
-              setNotifications(prev => ({ ...prev, abnormalReadings: checked }));
-              toast.success('Setting Updated successfully');
+            onCheckedChange={async (checked) => {
+              const saved = await persistNotifications({ ...notifications, abnormalReadings: checked });
+              if (saved) {
+                toast.success('Setting Updated successfully');
+              }
             }}
           />
         </div>
@@ -155,9 +164,11 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
           <Switch
             id="daily-summary"
             checked={notifications.dailySummary}
-            onCheckedChange={(checked) => {
-              setNotifications(prev => ({ ...prev, dailySummary: checked }));
-              toast.success('Setting Updated successfully');
+            onCheckedChange={async (checked) => {
+              const saved = await persistNotifications({ ...notifications, dailySummary: checked });
+              if (saved) {
+                toast.success('Setting Updated successfully');
+              }
             }}
           />
         </div>
@@ -190,9 +201,11 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
           <Switch
             id="email-notifs"
             checked={notifications.emailNotifications}
-            onCheckedChange={(checked) => {
-              setNotifications(prev => ({ ...prev, emailNotifications: checked }));
-              toast.success('Setting Updated successfully');
+            onCheckedChange={async (checked) => {
+              const saved = await persistNotifications({ ...notifications, emailNotifications: checked });
+              if (saved) {
+                toast.success('Setting Updated successfully');
+              }
             }}
           />
         </div>
@@ -236,32 +249,17 @@ export const SettingsDialog = ({ open, onOpenChange, type = 'privacy' }: Setting
       <Separator />
 
       <div className="space-y-4">
-        <h4 className="text-label font-medium">Email Verification</h4>
+        <h4 className="text-label font-medium">Email Security</h4>
 
         <div className="p-4 bg-muted/50 rounded-lg space-y-3">
           <div className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm">{user?.email}</span>
           </div>
-
-          {user?.email_confirmed_at ? (
-            <div className="flex items-center gap-2 text-primary">
-              <Shield className="h-4 w-4" />
-              <span className="text-sm">Email verified</span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-warning">Email not verified</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleResendVerification}
-                disabled={resendingVerification}
-              >
-                {resendingVerification ? 'Sending...' : 'Resend verification email'}
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-primary">
+            <Shield className="h-4 w-4" />
+            <span className="text-sm">Verification codes are delivered via Brevo during sign up</span>
+          </div>
         </div>
       </div>
 

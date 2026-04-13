@@ -20,14 +20,13 @@ export default function DashboardPage() {
     bloodSugarReadings, 
     bloodPressureReadings, 
     activityReadings,
-    isLoading: isReadingsLoading,
     isBloodSugarLoading,
     isBloodPressureLoading,
     isActivityLoading,
     addBloodSugarReading,
     addBloodPressureReading,
     updateTodaySteps
-  } = useReadings();
+  } = useReadings({ types: ["blood_sugar", "blood_pressure", "activity"] });
   
   const { 
     todaySchedule, 
@@ -35,7 +34,7 @@ export default function DashboardPage() {
     adherenceStreak, 
     adherenceRate,
     isLoading: isAdherenceLoading 
-  } = useAdherence();
+  } = useAdherence({ includeHistory: false, includeSchedule: true });
   
   const { profile, isLoading: isProfileLoading } = useProfile();
 
@@ -62,6 +61,7 @@ export default function DashboardPage() {
         todaySchedule={todaySchedule}
         bloodPressureReadings={bloodPressureReadings}
         isMedsLoading={isMedsLoading}
+        isAdherenceLoading={isAdherenceLoading}
         isBloodPressureLoading={isBloodPressureLoading}
         isActivityLoading={isActivityLoading}
         onMarkMedicationTaken={(logId, medicationId, scheduledTime) => {

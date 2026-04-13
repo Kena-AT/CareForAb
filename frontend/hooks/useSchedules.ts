@@ -6,7 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MedicationSchedule } from "@/types/health";
 import { toast } from "sonner";
 
-export const useSchedules = () => {
+interface UseSchedulesOptions {
+  enabled?: boolean;
+}
+
+export const useSchedules = ({ enabled = true }: UseSchedulesOptions = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -23,7 +27,7 @@ export const useSchedules = () => {
       if (error) throw error;
       return data as MedicationSchedule[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && enabled,
     staleTime: 300000,
     gcTime: 600000,
   });

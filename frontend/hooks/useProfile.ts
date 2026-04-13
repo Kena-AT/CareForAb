@@ -69,6 +69,7 @@ export const useProfile = () => {
     isError: query.isError,
     error: query.error,
     updateProfile: updateProfileMutation.mutate,
+    updateProfileAsync: updateProfileMutation.mutateAsync,
     isUpdating: updateProfileMutation.isPending,
   };
 };

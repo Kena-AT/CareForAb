@@ -50,4 +50,23 @@ router.post('/action-plan', async (req, res) => {
   }
 });
 
+router.post('/medical-qa', async (req, res) => {
+  try {
+    const { question, data } = req.body as {
+      question: string;
+      data: any;
+    };
+
+    const response = await geminiService.answerMedicalQuestion(question, data || {
+      bloodSugar: [],
+      bloodPressure: [],
+      medications: [],
+    });
+
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to answer medical question' });
+  }
+});
+
 export default router;

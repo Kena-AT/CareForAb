@@ -8,7 +8,11 @@ import { toast } from "sonner";
 
 import { scheduleAllMedicationReminders, cancelAllReminders } from "@/services/notifications";
 
-export const useMedications = () => {
+interface UseMedicationsOptions {
+  enabled?: boolean;
+}
+
+export const useMedications = ({ enabled = true }: UseMedicationsOptions = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -16,13 +20,19 @@ export const useMedications = () => {
   const refreshReminders = async () => {
     if (!user?.id) return;
     
-    // Check if reminders are enabled in profile
-    const { data: profile } = (await supabase
-      .from('profiles')
-      .select('notification_preferences')
-      .eq('id', user.id)
-      .single()) as any;
-    if (!profile?.notification_preferences?.medication) {
+    const cachedProfile = queryClient.getQueryData<any>(["profile", user.id]);
+    let prefs = cachedProfile?.notification_preferences;
+
+    if (!prefs) {
+      const { data: profile } = (await supabase
+        .from('profiles')
+        .select('notification_preferences')
+        .eq('id', user.id)
+        .single()) as any;
+      prefs = profile?.notification_preferences;
+    }
+
+    if (!prefs?.medication) {
       await cancelAllReminders();
       return;
     }
@@ -58,7 +68,7 @@ export const useMedications = () => {
       if (error) throw error;
       return data as Medication[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && enabled,
     staleTime: 300000,
     gcTime: 600000,
   });

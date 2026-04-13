@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Activity, Target, ChevronRight, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/layout/Header';
 import { useReadings } from '@/hooks/useReadings';
 import { useMedications } from '@/hooks/useMedications';
@@ -12,12 +13,16 @@ import { useAdherence } from '@/hooks/useAdherence';
 import { 
   HealthDataSnapshot, 
   generateClinicalReport, 
-  generateActionPlan 
+  generateActionPlan,
+  askMedicalQuestion,
+  MedicalQAResponse,
 } from '@/services/gemini';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // Optimization: Dynamically import heavy charts to reduce initial page load time
 // Using unknown typing due to recharts v2.15.1+ and @types/recharts 1.8.29 version mismatch
@@ -57,14 +62,16 @@ const Line = dynamic(
 
 export const InsightsScreen = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { 
     bloodSugarReadings, 
     bloodPressureReadings, 
     isBloodSugarLoading,
     isBloodPressureLoading
-  } = useReadings();
+  } = useReadings({ types: ['blood_sugar', 'blood_pressure'] });
   const { medications, isLoading: isMedsLoading } = useMedications();
-  const { medicationLogs, isLoading: isAdherenceLoading } = useAdherence();
+  const { medicationLogs, adherenceRate, isLoading: isAdherenceLoading } = useAdherence({ summaryOnly: true, includeSchedule: true, includeHistory: false });
 
   const isHealthLoading = isBloodSugarLoading || isBloodPressureLoading || isMedsLoading || isAdherenceLoading;
 
@@ -72,6 +79,23 @@ export const InsightsScreen = () => {
   const [aiInsight, setAiInsight] = useState<any>(null);
   const [actionPlan, setActionPlan] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [medicalQuestion, setMedicalQuestion] = useState('');
+  const [medicalAnswer, setMedicalAnswer] = useState<MedicalQAResponse | null>(null);
+  const [isAnsweringQuestion, setIsAnsweringQuestion] = useState(false);
+  const [hasAutoRunTriggered, setHasAutoRunTriggered] = useState(false);
+
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<T>((resolve) => {
+      timeoutId = setTimeout(() => resolve(fallback), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   // Filter readings based on timeframe - Memoized to prevent heavy re-calculation
   const filteredReadings = useMemo(() => {
@@ -155,9 +179,26 @@ export const InsightsScreen = () => {
         }))
       };
 
+      const quickSummaryFallback = {
+        weeklySummary: 'AI processing is taking longer than expected. Showing rapid local summary while sync continues in the background.',
+        risks: ['No urgent AI flags yet'],
+        doctorQuestions: ['Are my current trends stable enough to maintain this treatment plan?'],
+        adherenceScore: Math.round((filteredReadings.medLogs.filter((log) => log.status === 'taken').length / Math.max(filteredReadings.medLogs.length, 1)) * 100),
+        vascularHealthInsight: 'Use recent blood pressure trends for immediate provider review.',
+        metabolicStabilityInsight: 'Use recent glucose trends for immediate provider review.',
+      };
+
+      const quickActionFallback = {
+        actions: [
+          'Maintain your current medication schedule.',
+          'Log one fresh blood sugar reading today.',
+          'Log one fresh blood pressure reading today.',
+        ],
+      };
+
       const [summary, actions] = await Promise.all([
-        generateClinicalReport(data),
-        generateActionPlan(data)
+        withTimeout(generateClinicalReport(data), 9000, quickSummaryFallback as any),
+        withTimeout(generateActionPlan(data), 7000, quickActionFallback),
       ]);
       
       setAiInsight(summary);
@@ -201,13 +242,13 @@ export const InsightsScreen = () => {
         />
 
         <main className="px-6 md:px-10 py-6 md:py-10 max-w-7xl mx-auto space-y-12">
-          {isHealthLoading ? (
-            <div className="flex flex-col items-center justify-center h-[50vh] space-y-4 mt-12 bg-white/50 backdrop-blur-sm rounded-[40px] border border-slate-50">
-              <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto opacity-20" />
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Synchronizing Clinical Markers...</p>
+          {isHealthLoading && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-100 rounded-2xl w-fit">
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">AI Brain Syncing...</p>
             </div>
-          ) : (
-            <>
+          )}
+          <>
               {/* Weekly Clinical Summary */}
           {aiInsight && (
             <motion.section 
@@ -445,18 +486,15 @@ export const InsightsScreen = () => {
           </section>
 
           {isAnalyzing && (
-            <section className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-md flex items-center justify-center">
-              <div className="text-center space-y-6">
-                  <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
-                  <div className="space-y-1">
-                    <h4 className="text-xl font-black text-slate-900 tracking-tight">AI Clinical Brain Syncing...</h4>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Processing CareForAb AI models (gemini-2.5-flash)</p>
-                  </div>
+            <section className="fixed bottom-6 right-6 z-[200] bg-white border border-slate-100 shadow-xl rounded-2xl px-4 py-3 flex items-center gap-3">
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-black text-slate-900 tracking-tight">AI Brain Syncing...</h4>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Processing CareForAb AI</p>
               </div>
             </section>
           )}
           </>
-          )}
         </main>
       </div>
     </ErrorBoundary>

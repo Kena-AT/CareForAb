@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { signInSchema, signUpSchema } from '@/lib/validation';
+import { apiUrl } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AuthMode = 'signin' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email' | 'logout-confirm' | 'logged-out';
@@ -122,7 +123,7 @@ function AuthContent() {
 
   const handleResendOtp = async () => {
     setLoading(true);
-    const { success, error } = await resendOtp(email, fullName);
+    const { success, error } = await resendOtp(email, fullName, password, dateOfBirth);
     setLoading(false);
     if (success) {
       toast.success('New code sent successfully!');
@@ -139,11 +140,19 @@ function AuthContent() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?mode=reset-password`,
+      const response = await fetch(apiUrl('/api/auth/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email, 
+          redirectTo: `${window.location.origin}/auth?mode=reset-password`
+        }),
       });
-      if (error) throw error;
-      toast.success('Reset link sent to your email');
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to send reset link');
+      
+      toast.success(result.message || 'Reset link sent to your email');
       setMode('signin');
     } catch (error: any) {
       toast.error(error.message);

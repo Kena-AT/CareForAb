@@ -33,6 +33,7 @@ interface DashboardScreenProps {
   todaySchedule: TodayScheduleItem[];
   bloodPressureReadings: BloodPressureReading[];
   isMedsLoading?: boolean;
+  isAdherenceLoading?: boolean;
   isBloodPressureLoading?: boolean;
   isActivityLoading?: boolean;
   onMarkMedicationTaken: (logId?: string, medicationId?: string, scheduledTime?: string) => void;
@@ -58,6 +59,7 @@ export const DashboardScreen = ({
   todaySchedule,
   bloodPressureReadings,
   isMedsLoading = false,
+  isAdherenceLoading = false,
   isBloodPressureLoading = false,
   isActivityLoading = false,
   onMarkMedicationTaken,
@@ -201,8 +203,8 @@ export const DashboardScreen = ({
                  </div>
                  <div className="flex items-end justify-between gap-4">
                     <div className="flex items-end gap-2">
-                       <span className="text-4xl md:text-5xl font-black leading-none">{takenMeds.length}</span>
-                       <span className="text-sm font-bold opacity-70 mb-1">/ {todaySchedule.length} Taken</span>
+                        <span className="text-4xl md:text-5xl font-black leading-none">{isAdherenceLoading ? '--' : takenMeds.length}</span>
+                        <span className="text-sm font-bold opacity-70 mb-1">/ {isAdherenceLoading ? '--' : todaySchedule.length} Taken</span>
                     </div>
                     <Button 
                       onClick={() => onNavigate('medications')}
@@ -227,7 +229,7 @@ export const DashboardScreen = ({
               </div>
 
                <div className="space-y-4">
-                {(isMedsLoading && medications.length === 0) ? (
+                {(isMedsLoading && medications.length === 0) || isAdherenceLoading ? (
                   <>
                     <MedCardSkeleton />
                     <MedCardSkeleton />

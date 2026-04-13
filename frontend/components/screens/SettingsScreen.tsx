@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Shield, Mail, Activity, 
   Lock, Globe, Smartphone,
@@ -41,7 +41,7 @@ export const SettingsScreen = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const { profile, updateProfile, isUpdating } = useProfile();
+  const { profile, updateProfileAsync, isUpdating } = useProfile();
   
   // Local state for editing before save
   const [localLanguage, setLocalLanguage] = useState('English (United States)');
@@ -60,18 +60,40 @@ export const SettingsScreen = () => {
   useEffect(() => {
     if (profile) {
       setLocalLanguage(profile.language || 'English (United States)');
-      if (profile.notification_preferences) {
-        setLocalNotifications({
-          ...localNotifications,
-          ...profile.notification_preferences
-        });
-      }
+      setLocalNotifications({
+        push: true,
+        email: false,
+        medication: true,
+        clinical_sync: true,
+        data_permissions: 'standard',
+        abnormal_readings: true,
+        ...(profile.notification_preferences || {}),
+      });
     }
   }, [profile]);
 
-  const handleToggleNotification = (key: string) => {
-    setLocalNotifications(prev => ({ ...prev, [key]: !prev[key as keyof typeof localNotifications] }));
-    setIsDirty(true);
+  const handleToggleNotification = async (key: keyof typeof localNotifications) => {
+    if (!user) {
+      toast.error('Not authenticated');
+      return;
+    }
+
+    const nextNotifications = {
+      ...localNotifications,
+      [key]: !localNotifications[key],
+    };
+
+    setLocalNotifications(nextNotifications);
+
+    try {
+      await updateProfileAsync({
+        notification_preferences: nextNotifications as any,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      setLocalNotifications(localNotifications);
+      console.error('[Settings] Toggle notification error:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -81,7 +103,7 @@ export const SettingsScreen = () => {
     }
     
     try {
-      await updateProfile({
+      await updateProfileAsync({
         language: localLanguage,
         notification_preferences: localNotifications as any,
         updated_at: new Date().toISOString()
@@ -171,7 +193,7 @@ export const SettingsScreen = () => {
                     <p className="text-xs text-slate-400">All vital alerts and system updates</p>
                   </div>
                 </div>
-                <Switch checked={localNotifications.push} onCheckedChange={() => handleToggleNotification('push')} />
+                <Switch checked={localNotifications.push} disabled={isUpdating} onCheckedChange={() => handleToggleNotification('push')} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex gap-4 items-center">
@@ -185,6 +207,7 @@ export const SettingsScreen = () => {
                 </div>
                 <Switch 
                   checked={localNotifications.abnormal_readings} 
+                  disabled={isUpdating}
                   onCheckedChange={() => handleToggleNotification('abnormal_readings')} 
                 />
               </div>
@@ -198,7 +221,7 @@ export const SettingsScreen = () => {
                     <p className="text-xs text-slate-400">Daily medication reminders directly to your inbox</p>
                   </div>
                 </div>
-                <Switch checked={localNotifications.email} onCheckedChange={() => handleToggleNotification('email')} />
+                <Switch checked={localNotifications.email} disabled={isUpdating} onCheckedChange={() => handleToggleNotification('email')} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex gap-4 items-center">
@@ -210,7 +233,7 @@ export const SettingsScreen = () => {
                     <p className="text-xs text-slate-400">Schedule based alerts for medications</p>
                   </div>
                 </div>
-                <Switch checked={localNotifications.medication} onCheckedChange={() => handleToggleNotification('medication')} />
+                <Switch checked={localNotifications.medication} disabled={isUpdating} onCheckedChange={() => handleToggleNotification('medication')} />
               </div>
 
               <Button

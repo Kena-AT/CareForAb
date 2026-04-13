@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, ChevronRight, FileText, Download, Activity, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,8 +41,8 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
     bloodSugarReadings, 
     bloodPressureReadings, 
     isLoading: isReadingsLoading 
-  } = useReadings();
-  const { medicationLogs, adherenceRate: calculatedAdherenceRate, isLoading: isAdherenceLoading } = useAdherence();
+  } = useReadings({ types: ['blood_sugar', 'blood_pressure'] });
+  const { adherenceRate: calculatedAdherenceRate, isLoading: isAdherenceLoading } = useAdherence({ summaryOnly: true });
 
   const [timeframe, setTimeframe] = useState('30days');
   const [isUploading, setIsUploading] = useState(false);
@@ -123,7 +123,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
   };
 
   // Timeframe calculation
-  const getFilteredData = () => {
+  const { filteredBg, filteredBp, daysTracked, totalReadings } = useMemo(() => {
     const now = new Date();
     let startDate = new Date();
     switch (timeframe) {
@@ -137,30 +137,30 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
     }
 
     const filterFunc = (item: { recorded_at: string }) => new Date(item.recorded_at) >= startDate;
-    
+    const filteredBg = bloodSugarReadings.filter(filterFunc);
+    const filteredBp = bloodPressureReadings.filter(filterFunc);
+    const daysTracked = new Set([
+      ...filteredBg.map(r => new Date(r.recorded_at).toDateString()),
+      ...filteredBp.map(r => new Date(r.recorded_at).toDateString()),
+    ]).size;
+
     return {
-      filteredBg: bloodSugarReadings.filter(filterFunc),
-      filteredBp: bloodPressureReadings.filter(filterFunc),
+      filteredBg,
+      filteredBp,
+      daysTracked,
+      totalReadings: filteredBg.length + filteredBp.length,
     };
-  };
-
-  const { filteredBg, filteredBp } = getFilteredData();
-
-  const daysTracked = new Set([
-    ...filteredBg.map(r => new Date(r.recorded_at).toDateString()),
-    ...filteredBp.map(r => new Date(r.recorded_at).toDateString()),
-  ]).size;
-
-  const totalReadings = filteredBg.length + filteredBp.length;
+  }, [timeframe, bloodSugarReadings, bloodPressureReadings]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const isLoading = isProfileLoading || isMedsLoading || isReadingsLoading || isAdherenceLoading;
+  const isInitialLoading = isProfileLoading || isMedsLoading;
+  const isDataLoading = isReadingsLoading || isAdherenceLoading;
 
-  if (isLoading) {
+  if (isInitialLoading) {
      return (
        <div className="min-h-screen bg-[#f6fafaff] flex items-center justify-center">
           <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="text-primary">
@@ -280,7 +280,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
                     <span className="text-xs font-bold text-emerald-600">+12% vs last period</span>
                   </div>
                   <p className="text-sm font-bold text-slate-500 mb-1">Days Tracked</p>
-                  <p className="text-4xl font-black text-slate-900">{daysTracked}</p>
+                  <p className="text-4xl font-black text-slate-900">{isDataLoading ? '...' : daysTracked}</p>
                 </CardContent>
               </Card>
 
@@ -290,10 +290,13 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
                     <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                       <Activity size={20} />
                     </div>
-                    <span className="text-xs font-bold text-blue-600">{calculatedAdherenceRate >= 90 ? 'Excellent' : 'Needs Focus'}</span>
+                    <span className="text-xs font-bold text-blue-600">{isDataLoading ? 'Loading' : calculatedAdherenceRate >= 90 ? 'Excellent' : 'Needs Focus'}</span>
                   </div>
                   <p className="text-sm font-bold text-slate-500 mb-1">Adherence Rate</p>
-                  <p className="text-4xl font-black text-slate-900">{calculatedAdherenceRate}<span className="text-2xl">%</span></p>
+                  <p className="text-4xl font-black text-slate-900">
+                    {isDataLoading ? '--' : calculatedAdherenceRate}
+                    <span className="text-2xl">%</span>
+                  </p>
                 </CardContent>
               </Card>
 
@@ -306,7 +309,7 @@ export const ProfileScreen = ({ onSettingsClick }: ProfileScreenProps = {}) => {
                     <span className="text-xs font-bold text-red-600">Active</span>
                   </div>
                   <p className="text-sm font-bold text-slate-500 mb-1">Total Readings</p>
-                  <p className="text-4xl font-black text-slate-900">{totalReadings}</p>
+                  <p className="text-4xl font-black text-slate-900">{isDataLoading ? '...' : totalReadings}</p>
                 </CardContent>
               </Card>
             </div>

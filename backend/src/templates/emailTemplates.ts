@@ -62,4 +62,22 @@ export const emailTemplates = {
       </div>
     `,
   }),
+  passwordReset: (fullName: string, resetLink: string) => ({
+    subject: "Reset your CareforAb password",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #1a4d4a;">Password Reset Request</h2>
+        <p>Hi ${fullName}, we received a request to reset the password for your CareforAb account.</p>
+        <p>Click the button below to set a new password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background-color: #1a4d4a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">If the button doesn't work, you can copy and paste the following link into your browser:</p>
+        <p style="word-break: break-all; color: #1a4d4a; font-size: 12px;">${resetLink}</p>
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't request a password reset, you can safely ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="text-align: center; color: #999; font-size: 12px;">&copy; 2026 CareforAb. All rights reserved.</p>
+      </div>
+    `,
+  }),
 };
