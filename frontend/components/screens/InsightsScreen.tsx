@@ -146,55 +146,143 @@ export const InsightsScreen = () => {
     }));
   }, [trendsData, aiInsight]);
 
+  const buildRapidFallbackSnapshot = useCallback((): HealthDataSnapshot => {
+    const medicationMap = new Map(medications.map((med) => [med.id, med]));
+
+    return {
+      bloodSugar: filteredReadings.bloodSugar.slice(0, 30).map((r) => ({
+        value: r.value,
+        unit: r.unit,
+        meal_type: (r as any).meal_type || 'other',
+        recorded_at: r.recorded_at,
+      })),
+      bloodPressure: filteredReadings.bloodPressure.slice(0, 30).map((r) => ({
+        systolic: r.systolic,
+        diastolic: r.diastolic,
+        pulse: r.pulse || undefined,
+        recorded_at: r.recorded_at,
+      })),
+      medications: filteredReadings.medLogs.slice(0, 30).map((log) => {
+        const med = medicationMap.get(log.medication_id);
+        return {
+          name: med?.name || 'Medication',
+          dosage: med?.dosage || 'N/A',
+          status: log.status,
+          date: log.date,
+        };
+      }),
+      activeMedications: medications.map((med) => ({
+        name: med.name,
+        dosage: med.dosage,
+        purpose: med.notes || 'Routine Clinical Protocol',
+      })),
+      adherence: {
+        todayRate: adherenceRate,
+        recentMissed: filteredReadings.medLogs.filter((log) => log.status === 'missed').length,
+      },
+    };
+  }, [medications, filteredReadings, adherenceRate]);
+
+  const buildAiSnapshot = useCallback(async (): Promise<HealthDataSnapshot> => {
+    const [oxygenResult, activityResult, profileResult] = user?.id
+      ? await Promise.all([
+          supabase
+            .from('oxygen_readings' as any)
+            .select('value, recorded_at')
+            .eq('user_id', user.id)
+            .order('recorded_at', { ascending: false })
+            .limit(30),
+          supabase
+            .from('activity_readings')
+            .select('steps, date, recorded_at')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false })
+            .limit(30),
+          supabase
+            .from('profiles')
+            .select('blood_type, date_of_birth, timezone')
+            .eq('id', user.id)
+            .single(),
+        ])
+      : [{ data: [] as any[] }, { data: [] as any[] }, { data: null as any }];
+
+    const medicationMap = new Map(medications.map((med) => [med.id, med]));
+    const dateOfBirth = profileResult.data?.date_of_birth ? new Date(profileResult.data.date_of_birth) : null;
+    const age = dateOfBirth
+      ? Math.max(0, new Date().getFullYear() - dateOfBirth.getFullYear() - (new Date().getMonth() < dateOfBirth.getMonth() || (new Date().getMonth() === dateOfBirth.getMonth() && new Date().getDate() < dateOfBirth.getDate()) ? 1 : 0))
+      : null;
+
+    return {
+      bloodSugar: filteredReadings.bloodSugar.slice(0, 30).map((r) => ({
+        value: r.value,
+        unit: r.unit,
+        meal_type: (r as any).meal_type || 'other',
+        recorded_at: r.recorded_at,
+      })),
+      bloodPressure: filteredReadings.bloodPressure.slice(0, 30).map((r) => ({
+        systolic: r.systolic,
+        diastolic: r.diastolic,
+        pulse: r.pulse || undefined,
+        recorded_at: r.recorded_at,
+      })),
+      medications: filteredReadings.medLogs.slice(0, 30).map((log) => {
+        const med = medicationMap.get(log.medication_id);
+        return {
+          name: med?.name || 'Medication',
+          dosage: med?.dosage || 'N/A',
+          status: log.status,
+          date: log.date,
+        };
+      }),
+      activeMedications: medications.map((med) => ({
+        name: med.name,
+        dosage: med.dosage,
+        purpose: med.notes || 'Routine Clinical Protocol',
+      })),
+      oxygen: (oxygenResult.data || []).map((item: any) => ({
+        value: item.value,
+        recorded_at: item.recorded_at,
+      })),
+      activity: (activityResult.data || []).map((item: any) => ({
+        steps: item.steps,
+        date: item.date,
+        recorded_at: item.recorded_at,
+      })),
+      adherence: {
+        todayRate: adherenceRate,
+        recentMissed: filteredReadings.medLogs.filter((log) => log.status === 'missed').length,
+      },
+      profile: {
+        bloodType: profileResult.data?.blood_type || null,
+        age,
+        timezone: profileResult.data?.timezone || null,
+      },
+    };
+  }, [user?.id, medications, filteredReadings, adherenceRate]);
+
   const handleGenerateInsights = useCallback(async () => {
     if (isAnalyzing) return;
     setIsAnalyzing(true);
+
+    const quickSummaryFallback = {
+      weeklySummary: 'AI processing is taking longer than expected. Showing rapid local summary while sync continues in the background.',
+      risks: ['No urgent AI flags yet'],
+      doctorQuestions: ['Are my current trends stable enough to maintain this treatment plan?'],
+      adherenceScore: Math.round((filteredReadings.medLogs.filter((log) => log.status === 'taken').length / Math.max(filteredReadings.medLogs.length, 1)) * 100),
+      vascularHealthInsight: 'Use recent blood pressure trends for immediate provider review.',
+      metabolicStabilityInsight: 'Use recent glucose trends for immediate provider review.',
+    };
+
+    const quickActionFallback = {
+      actions: [
+        'Maintain your current medication schedule.',
+        'Log one fresh blood sugar reading today.',
+        'Log one fresh blood pressure reading today.',
+      ],
+    };
+
     try {
-      const data: HealthDataSnapshot = {
-        bloodSugar: filteredReadings.bloodSugar.slice(0, 20).map(r => ({
-          value: r.value,
-          unit: r.unit,
-          meal_type: (r as any).meal_type || 'other',
-          recorded_at: r.recorded_at
-        })),
-        bloodPressure: filteredReadings.bloodPressure.slice(0, 10).map(r => ({
-          systolic: r.systolic,
-          diastolic: r.diastolic,
-          pulse: r.pulse || undefined,
-          recorded_at: r.recorded_at
-        })),
-        medications: filteredReadings.medLogs.slice(0, 20).map(l => {
-          const med = medications.find(m => m.id === l.medication_id);
-          return {
-            name: med?.name || 'Medication',
-            dosage: med?.dosage || 'N/A',
-            status: l.status,
-            date: l.date
-          };
-        }),
-        activeMedications: medications.map(m => ({
-          name: m.name,
-          dosage: m.dosage,
-          purpose: m.notes || 'Routine Clinical Protocol'
-        }))
-      };
-
-      const quickSummaryFallback = {
-        weeklySummary: 'AI processing is taking longer than expected. Showing rapid local summary while sync continues in the background.',
-        risks: ['No urgent AI flags yet'],
-        doctorQuestions: ['Are my current trends stable enough to maintain this treatment plan?'],
-        adherenceScore: Math.round((filteredReadings.medLogs.filter((log) => log.status === 'taken').length / Math.max(filteredReadings.medLogs.length, 1)) * 100),
-        vascularHealthInsight: 'Use recent blood pressure trends for immediate provider review.',
-        metabolicStabilityInsight: 'Use recent glucose trends for immediate provider review.',
-      };
-
-      const quickActionFallback = {
-        actions: [
-          'Maintain your current medication schedule.',
-          'Log one fresh blood sugar reading today.',
-          'Log one fresh blood pressure reading today.',
-        ],
-      };
+      const data = await withTimeout(buildAiSnapshot(), 5000, buildRapidFallbackSnapshot());
 
       const [summary, actions] = await Promise.all([
         withTimeout(generateClinicalReport(data), 9000, quickSummaryFallback as any),
@@ -206,11 +294,63 @@ export const InsightsScreen = () => {
       toast.success('Clinical Intelligence Sync Complete');
     } catch (error) {
       console.error('AI error:', error);
-      toast.error('AI Analysis failed. Check Gemini status.');
+      setAiInsight(quickSummaryFallback);
+      setActionPlan(quickActionFallback.actions);
+      toast.error('AI took too long. Showing rapid local clinical summary.');
     } finally {
       setIsAnalyzing(false);
     }
-  }, [filteredReadings, medications, isAnalyzing]);
+  }, [buildAiSnapshot, buildRapidFallbackSnapshot, filteredReadings.medLogs, isAnalyzing]);
+
+  const handleAskMedicalQuestion = useCallback(async () => {
+    const question = medicalQuestion.trim();
+    if (!question) {
+      toast.error('Enter a medical question first.');
+      return;
+    }
+
+    setIsAnsweringQuestion(true);
+    try {
+      const data = await withTimeout(buildAiSnapshot(), 5000, buildRapidFallbackSnapshot());
+      const fallback: MedicalQAResponse = {
+        answer: 'AI response is taking longer than expected. Please retry in a few moments.',
+        confidence: 'low',
+        caution: 'moderate',
+        followUp: 'For urgent symptoms, seek immediate care.',
+      };
+
+      const response = await withTimeout(
+        askMedicalQuestion(question, data),
+        12000,
+        fallback
+      );
+
+      setMedicalAnswer(response);
+      toast.success('AI response ready');
+    } catch (error) {
+      console.error('Medical QA error:', error);
+      toast.error('Failed to answer the question. Please try again.');
+    } finally {
+      setIsAnsweringQuestion(false);
+    }
+  }, [medicalQuestion, buildAiSnapshot, buildRapidFallbackSnapshot]);
+
+  useEffect(() => {
+    const listener = () => {
+      handleGenerateInsights();
+    };
+
+    window.addEventListener('careforab:run-ai-audit', listener);
+    return () => window.removeEventListener('careforab:run-ai-audit', listener);
+  }, [handleGenerateInsights]);
+
+  useEffect(() => {
+    const shouldAutoRun = searchParams.get('autorun') === '1';
+    if (!shouldAutoRun || hasAutoRunTriggered || isHealthLoading || isAnalyzing) return;
+
+    setHasAutoRunTriggered(true);
+    handleGenerateInsights();
+  }, [searchParams, hasAutoRunTriggered, isHealthLoading, isAnalyzing, handleGenerateInsights]);
 
   const handleReset = () => {
     setAiInsight(null);
@@ -341,6 +481,70 @@ export const InsightsScreen = () => {
               </div>
             </motion.section>
           )}
+
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1 bg-primary rounded-full" />
+              <h3 className="text-sm font-black uppercase text-slate-400 tracking-[0.2em]">Ask CareForAb AI</h3>
+            </div>
+
+            <Card className="border-none bg-white shadow-xl shadow-slate-200/40 rounded-[36px] p-6 md:p-8 space-y-5">
+              <Textarea
+                value={medicalQuestion}
+                onChange={(e) => setMedicalQuestion(e.target.value)}
+                placeholder="Ask about your blood sugar, blood pressure, pulse, medications, steps, oxygen, or general care questions..."
+                className="min-h-[110px] rounded-2xl border-slate-200 focus-visible:ring-primary"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Is my blood pressure trend concerning?',
+                  'How can I improve my blood sugar stability?',
+                  'What should I do if I miss a medication dose?',
+                  'How do my steps affect my current health trends?',
+                ].map((sample) => (
+                  <button
+                    key={sample}
+                    type="button"
+                    onClick={() => setMedicalQuestion(sample)}
+                    className="px-3 py-1.5 rounded-full bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-wide hover:bg-slate-100"
+                  >
+                    {sample}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleAskMedicalQuestion}
+                  disabled={isAnsweringQuestion}
+                  className="rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase h-11 px-6"
+                >
+                  {isAnsweringQuestion ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                      Thinking...
+                    </>
+                  ) : 'Ask AI'}
+                </Button>
+              </div>
+
+              {medicalAnswer && (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Confidence</span>
+                    <span className="px-2 py-1 rounded-full bg-white border border-slate-200 text-[10px] font-black uppercase text-slate-600">{medicalAnswer.confidence}</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-2">Caution</span>
+                    <span className="px-2 py-1 rounded-full bg-white border border-slate-200 text-[10px] font-black uppercase text-slate-600">{medicalAnswer.caution}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 leading-relaxed">{medicalAnswer.answer}</p>
+                  {medicalAnswer.followUp && (
+                    <p className="text-xs font-bold text-slate-500 leading-relaxed">Next step: {medicalAnswer.followUp}</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </section>
 
           {/* Action Plan */}
           {!isAnalyzing && actionPlan.length > 0 && (

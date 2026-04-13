@@ -27,8 +27,8 @@ export const LogStepsModal = ({ onClose, onLog, currentSteps = 0 }: LogStepsModa
       await onLog(numSteps);
       setShowSuccess(true);
       setTimeout(onClose, 1500);
-    } catch (error) {
-      console.error('Error logging steps:', error);
+    } catch (error: any) {
+      console.error('Error logging steps:', error?.message || error);
     } finally {
       setIsSubmitting(false);
     }

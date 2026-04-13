@@ -227,10 +227,13 @@ export const useReadings = (options?: { types?: ReadingType[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const today = new Date().toISOString().split("T")[0];
       const { data, error } = await (supabase.from("activity_readings") as any)
-        .upsert({ user_id: user.id, date: today, steps }, { onConflict: "user_id,date" })
+        .upsert({ user_id: user.id, date: today, steps }, { onConflict: "unique_user_date" })
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error("Upsert activity error:", error);
+        throw error;
+      };
       return data;
     },
     onSuccess: () => {

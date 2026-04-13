@@ -22,11 +22,20 @@ export interface MedicalQAResponse {
 }
 
 export class GeminiService {
+  private getGeminiApiKey(): string {
+    return (
+      process.env.GOOGLE_GEMINI_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+      ''
+    );
+  }
+
   // Dynamically import the Gemini SDK to avoid module load failure at startup
   private async getClient() {
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+    const apiKey = this.getGeminiApiKey();
     if (!apiKey) {
-      throw new Error('Gemini API key is missing. Set GOOGLE_GEMINI_API_KEY in backend environment.');
+      throw new Error('Gemini API key is missing. Set GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, or NEXT_PUBLIC_GEMINI_API_KEY.');
     }
 
     try {
@@ -40,7 +49,7 @@ export class GeminiService {
   }
 
   private isConfigured(): boolean {
-    return Boolean(process.env.GOOGLE_GEMINI_API_KEY);
+    return Boolean(this.getGeminiApiKey());
   }
 
   private async getModel() {
@@ -141,7 +150,7 @@ export class GeminiService {
 
     try {
       if (!this.isConfigured()) {
-        return { headline: 'Clinical Syncing Pause', detail: 'Gemini is not configured yet. Basic monitoring remains active.', status: 'stable' as const };
+        return { headline: 'Clinical Syncing Pause', detail: 'AI summary is temporarily unavailable. Local monitoring remains active.', status: 'stable' as const };
       }
       const model = await this.getModel();
       const result = await model.generateContent(prompt);

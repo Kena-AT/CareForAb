@@ -7,6 +7,7 @@ import { useState, Suspense } from "react";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { BottomNav } from "@/components/layout/BottomNav";
 import dynamic from "next/dynamic";
+import { FloatingAIButton } from "@/components/common/FloatingAIButton";
 
 const SettingsDialog = dynamic(() => import("@/components/settings/SettingsDialog").then(mod => mod.SettingsDialog), {
   ssr: false
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       {isMobile && <BottomNav />}
+      <FloatingAIButton />
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
