@@ -1,5 +1,8 @@
 import SibApiV3Sdk from 'sib-api-v3-sdk';
 import { emailTemplates } from '../templates/emailTemplates';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
@@ -10,6 +13,7 @@ export class EmailService {
 
   constructor() {
     apiKey.apiKey = process.env.BREVO_API_KEY;
+    console.log("EmailService loaded, key starts with:", process.env.BREVO_API_KEY?.substring(0, 10));
     this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     this.senderEmail = process.env.BREVO_SENDER_EMAIL || 'kenakaye11@gmail.com';
   }
